@@ -10,7 +10,7 @@
       inot=0
       itops=0
       iread=0
-      rchr="chr1" !starts on chr1
+      rchr="I" !starts on chromosome I
       do i=1,iargc()
          if(i.lt.3)then
          call getarg(i, arg)

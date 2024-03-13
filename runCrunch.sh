@@ -18,7 +18,8 @@ nip=`wc -l $ipfile |awk '{print $1}'`
 nin=`wc -l $infile |awk '{print $1}'`
 legs=`awk '{sum+=$4} END {print sum/NR}' $infile`
 
-dep=`echo $nin*$widths/3200000000./\(1-$widths/3200000000\) |bc -l` #average layer on input
+# dep=`echo $nin*$widths/3200000000./\(1-$widths/3200000000\) |bc -l` #average layer on input (sapiens)
+dep=`echo $nin*$widths/12157105./\(1-$widths/12157105\) |bc -l` #average layer on input (cerevisiae)
 echo $dep
 
 #skip bug
