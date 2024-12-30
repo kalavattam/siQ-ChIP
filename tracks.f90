@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 ! Declare variables
 real*8 bin(100000), sum, itops  ! Array for binning data, 'bin'; scalars for cumulative sum, 'sum', and max bin value, 'itops'
 ! Declare integer variables:
@@ -13,10 +14,10 @@ character(len=5) :: unk2, rchr2    ! Alternate chromosome identifiers (unused)
 character(len=44) :: siq           ! Placeholder for HMM annotations (unused)
 character(len=62) :: arg, path(2)  ! Infile paths
 logical :: file_exists             ! File existence flag
-inot = 0       ! Integer variable initialized to 0 (unused)
-itops = 0      ! Tracks maximum value in bin array
-iread = 0      ! Integer variable initialized to 0 (unused)
-rchr = "chr1"  ! Start processing from chromosome "chr1"
+inot = 0    ! Integer variable initialized to 0 (unused)
+itops = 0   ! Tracks maximum value in bin array
+iread = 0   ! Integer variable initialized to 0 (unused)
+rchr = "I"  ! Start processing from chromosome "I"
 
 ! Read command-line arguments to get file paths and bin sizes
 do i = 1, iargc()              ! Loop through all CL arguments

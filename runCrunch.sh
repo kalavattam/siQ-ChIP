@@ -35,7 +35,9 @@ else
     legs=`awk '{ sum += $4 } END { print sum/NR }' ${infile}`
 
     #  Compute the depth factor for input normalization
-    dep=`echo $nin*$widths/3200000000./$begin:math:text$1-$widths/3200000000$end:math:text$ | bc -l` 
+    # dep=`echo $nin*$widths/3200000000./$begin:math:text$1-$widths/3200000000$end:math:text$ | bc -l` 
+    # dep=`echo ${nin}*${widths}/3200000000./\(1-${widths}/3200000000\) | bc -l` # Average layer on input (sapiens)
+    dep=`echo ${nin}*${widths}/12157105./\(1-${widths}/12157105\) | bc -l`       # Average layer on input (cerevisiae)
     echo ${dep}  # Print the computed depth factor for reference
 
     #  Compile the `tracks.f90` program and execute it; `tracks.f90` processes
@@ -62,10 +64,10 @@ else
 
     #  Compute normalized coverage for IP and input files 
     nl=`wc -l ${ipfile} | awk '{ print $1 }'`  # Count lines in the IP file
-    awk -v var=${nl} '{ print $1,$2,$3,$4 }' IP.data > IntermedIP_${tag}.bed  # Non-normalized intermediate IP coverage
+    awk -v var=${nl} '{ print $1,$2,$3,$4 }' IP.data > IntermedIP_${tag}.bed      # Non-normalized intermediate IP coverage
     awk -v var=${nl} '{ print $1,$2,$3,$4/var }' IP.data > NormCovIP_${tag}.bed   # Normalize IP coverage
 
     nl=`wc -l ${infile} | awk '{ print $1 }'`  # Count lines in the input file
-    awk -v var=${nl} '{ print $1,$2,$3,$4 }' IN.data > IntermedIN_${tag}.bed  # Non-normalized intermediate input coverage
+    awk -v var=${nl} '{ print $1,$2,$3,$4 }' IN.data > IntermedIN_${tag}.bed      # Non-normalized intermediate input coverage
     awk -v var=${nl} '{ print $1,$2,$3,$4/var }' IN.data > NormCovIN_${tag}.bed   # Normalize input coverage and save
 fi
