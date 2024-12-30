@@ -1,0 +1,203 @@
+Control flow for Brad's approach to generating binned coverage
+
+1. Declate variables for storing information
++--------------+--------------------+--------------------------------+---------+-------------------------------------------------------------+
+| Variable     | Type               | Explain                        | Nature  | Purpose                                                     |
++--------------+--------------------+--------------------------------+---------+-------------------------------------------------------------+
+| bin          | real*8(100000)     | Double-prec. flt., 100000 el.  | Array   | Stores signal values for 100,000 bins in a genomic region.  |
+| sum          | real*8             | Double-precision float.        | Scalar  | Stores cumulative sum of bin values in a range.             |
+| itops        | real*8             | Double-precision float.        | Scalar  | Tracks maximum value in 'bin' array.                        |
+| unk          | character(len=6)   | Fixed-length string.           | Scalar  | Chromosome identifier (e.g., chr1).                         |
+| rchr         | character(len=6)   | Fixed-length string.           | Scalar  | Current chromosome being processed.                         |
+| unk2         | character(len=5)   | Fixed-length string.           | Scalar  | Alternate chromosome identifier (e.g., chr2; unused).       |
+| rchr2        | character(len=5)   | Fixed-length string.           | Scalar  | Additional metadata or alternate chromosome name (unused).  |
+| siq          | character(len=44)  | Fixed-length string.           | Scalar  | Placeholder for annotations or metadata (unused).           |
+| arg          | character(len=62)  | Fixed-length string.           | Scalar  | Temporary storage for command-line arguments.               |
+| path(2)      | character(len=62)  | Fixed-length string, two el.   | Array   | Stores file paths for the two input files.                  |
+| file_exists  | logical            | Bool flag (true/false).        | Scalar  | Indicates whether the specified input file exists.          |
+| nleng(2)     | integer            | Integer, two elements.         | Array   | Stores bin sizes for the two input files.                   |
+| ilft         | integer            | Integer.                       | Scalar  | Start position of the genomic region being processed.       |
+| irght        | integer            | Integer.                       | Scalar  | End position of the genomic region being processed.         |
+| leng         | integer            | Integer.                       | Scalar  | Length of region ('irght - ilft').                          |
+| leftend      | integer            | Integer.                       | Scalar  | Left boundary of the current binning range.                 |
+| rightend     | integer            | Integer.                       | Scalar  | Right boundary of the current binning range.                |
+| Reason       | integer            | Integer.                       | Scalar  | Stores the I/O status code after reading input.             |
+| lpos         | integer            | Integer.                       | Scalar  | Tracks the current genomic position in the `bin` array.     |
++--------------+--------------------+--------------------------------+---------+-------------------------------------------------------------+    
+
+2. Read command-line arguments to get file paths and bin sizes
+
+3. Run outer loop on IP and input infiles: `do k = 1, 2`
+    a. Run main infile-processing loop
+        ```f90
+        12345 continue
+        read(12, *, IOSTAT=Reason) unk, ilft, irght, leng
+        ```
+        - Read one line of the input file: unk, ilft, irght, leng (chrom, start, end, length)
+            + unk: Chromosome identifier
+            + ilft, irght: Start and end positions of the genomic region
+            + leng: Length of the region
+        - Handle errors
+            ```
+            if (Reason.gt.0) then
+                write(*, *) 'There was an error in input file ', path(k)
+                stop
+            ```
+            + If an I/O error occurs (Reason > 0), the program outputs an error message and halts execution
+        - Proceed with valid input
+            ```
+            elseif (Reason.eq.0) then
+            23456 continue
+            ```
+            + If the line is valid, the program jumps to label 23456 for processing
+
+    b. Perform chromosome check: `if (unk /= rchr) go to 54321`
+        - If the chromosome (unk) changes, the program
+            + ...finalizes processing of the current chromosome
+            + ...moves to the next chromosome (54321)
+
+    c. Perform valid chromosome format check: `if (SCAN(unk(5:6), "_").eq.0) then`
+        - Ensure the chromosome identifier follows the expected format: No underscore in positions 5–6
+
+    d. Handle non-overlapping regions: `if (ilft.gt.rightend.and.unk == rchr) then`
+        - If the new region starts after the current region (ilft > rightend), then
+            + Write current bins: Output data for the current bins (chromosome, range, cumulative signal).
+            + Reset variables:
+                - Clear bin and reset counters.
+                - Update region boundaries (leftend, rightend).
+                - Initialize bins for new region: normalizes values for the bins in the new region.
+
+    e. Handle overlapping regions: `elseif (ilft.le.rightend.and.unk == rchr) then`
+        - If the new region overlaps with the current region, then
+            + Extend the current region’s rightend boundary to encompass the new region
+            + Update bins corresponding to the overlapping range
+        - Perform bounds check: `if (1+ilft-leftend.lt.100000.and.rightend-leftend.le.100000) then`
+            + Ensure bin indices do not exceed the array size (100000)
+        - Update overlapping bins:
+            ```
+            do i = min(100000, 1+ilft-leftend), min(100000, 1+ilft-leftend+leng)
+                bin(i) = bin(i) + 1d0 / dble(leng)
+                itops = max(itops, bin(i))
+            ```
+            + Add normalized values to overlapping bins
+
+    f. Handle bin overflow: `else`
+        - If the region size exceeds the array bounds, then
+            + Write out the current bins to the output file
+            + Clear bin and reset counters
+
+    g. Write binned data:
+        ```
+        if (itops.gt.0) then
+            do i = 1, ilft, nleng(k)
+                sum = 0
+                idub = 0
+                do j = min(i, 100000), min(iend, 100000)
+                   sum = sum + bin(j)
+                enddo
+                write(88, *) unk, lpos-idub, lpos-1, dble(sum)
+            enddo
+            if (k.eq.2) then
+                write(89, *) unk, leftend, rightend, ave / count
+            endif
+        ```
+        - Write data for individual bins (unk, start, end, cumulative signal)
+        - If processing the control (input) file, write data for average signal for the entire region
+
+    h. Finalize the current chromosome
+        ```
+        54321 continue
+        close(12)
+        close(88)
+        ```
+
+    i. Return to the next line: `go to 12345`
+        - Loop back to process the next line of the input file
+
+Control Flow Summary
+    1. Outer Loop: Iterates over input files.
+    2. Read Line: Reads a genomic region’s data from the file.
+    3. Chromosome Check: Switch to a new chromosome if necessary.
+    4. Region Handling:
+        - Non-overlapping regions: Write out bins and reset.
+        - Overlapping regions: Update bins.
+    5. Bounds Check: Ensure indices stay within array limits.
+    6. Output: Write data for individual bins and averages for regions.
+    7. Loop Back: Return to process the next line or file.
+
+
+f. Handle overlapping regions: `elseif (ilft.le.rightend.and.unk == rchr) then`
+    - If the new region overlaps with the current region, then
+        + Extend the current region’s rightend boundary to encompass the new region:
+            ```
+            rightend = max(rightend, ilft + leng)
+            ```
+            - The `rightend` boundary is updated to the maximum of:
+                + The current `rightend` boundary.
+                + The end position of the new region (`ilft + leng`).
+
+        + Perform bounds check: `if (1+ilft-leftend.lt.100000.and.rightend-leftend.le.100000) then`
+            - Ensure bin indices stay within array bounds:
+                + Start index: `1 + ilft - leftend` must be less than `100000`, ensuring the start of the region doesn't exceed the array size
+                + Total bins: `rightend - leftend` must be less than or equal to `100000`, ensuring the entire region fits in the `bin` array
+
+        + Update bins within bounds:
+            ```
+            do i = min(100000, 1+ilft-leftend), min(100000, 1+ilft-leftend+leng)
+                bin(i) = bin(i) + 1d0 / dble(leng)
+                itops = max(itops, bin(i))
+            enddo
+            ```
+            - For each overlapping bin:
+                + Add normalized values (`1d0 / dble(leng)`) to ensure the region's signal is evenly distributed
+                + Track the maximum bin value (`itops`)
+
+        + Continue processing the next region: `go to 12345`
+
+    g. Handle bin overflow: `else`
+        - If the region size exceeds the array bounds, then:
+            + Update bins within the array:
+                ```
+                do i = min(100000, 1+ilft-leftend), min(100000, 1+ilft-leftend+leng)
+                    bin(i) = bin(i) + 1d0 / dble(leng)
+                    itops = max(itops, bin(i))
+                enddo
+                ```
+                - Safely update the bins that fit within the array, distributing normalized values and tracking the maximum bin value.
+
+            + Write out current bins:
+                ```
+                if (itops.gt.0) then
+                    lpos = leftend
+                    ave = 0d0
+                    count = 0d0
+                    do i = 1, ilft, nleng(k)
+                        sum = 0
+                        idub = 0
+                        iend = min(ilft-leftend, i+nleng(k)-1)
+                        do j = min(i, 100000), min(iend, 100000)
+                            sum = sum + bin(j)
+                        enddo
+                        write(88, *) unk, lpos-idub, lpos-1, dble(sum)
+                        ave = ave + dble(sum) / dble(idub)
+                        count = count + 1d0
+                    enddo
+                    if (k.eq.2) then
+                        write(89, *) unk, leftend, rightend, ave / count
+                    endif
+                endif
+                ```
+                - Outputs:
+                    * **For individual bins**: Chromosome, range, and cumulative signal values.
+                    * **For control data (k = 2)**: Average signal for the entire region.
+
+            + Reset variables:
+                ```
+                bin = 0
+                itops = 0
+                leftend = ilft
+                rightend = irght
+                ```
+                - Prepares for processing the next region.
+
+        + Continue processing the next line: `go to 12345`.
