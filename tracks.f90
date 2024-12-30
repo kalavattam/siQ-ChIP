@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 ! Declare variables
 real*8 bin(100000), sum, itops  ! Array for binning data, 'bin'; scalars for cumulative sum, 'sum', and max bin value, 'itops'
 ! Declare integer variables:
