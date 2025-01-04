@@ -120,7 +120,7 @@ function compile_fortran() {
     local fil_bin="${2}"  # Path to output binary file
 
     if [[ ! -f "${fil_bin}" || "${fil_src}" -nt "${fil_bin}" ]]; then
-        if ${dry_run}; then
+        if ${dry_run:-false}; then
             echo "Would compile: ${fil_src} -> ${fil_bin}"
         else
             gfortran -O3 -fbounds-check -o "${fil_bin}" "${fil_src}"
@@ -210,6 +210,33 @@ function write_check_bdg() {
     fi
 
     return 0
+}
+
+
+function check_norm_unity() {
+    local fil_in="${1}"
+    local rng_gt="${2:-0.98}"
+    local rng_lt="${3:-1.02}"
+    local reader
+
+    #  Determine whether to read file with zcat or cat
+    if [[ "${fil_in}" == *.gz ]]; then
+        reader="zcat"
+    else
+        reader="cat"
+    fi
+
+    #  Process the file and check its sum
+    ${reader} "${fil_in}" \
+        | awk -v rng_gt="${rng_gt}" -v rng_lt="${rng_lt}" '{
+            sum += $4
+        } END {
+            if (sum >= rng_gt && sum <= rng_lt) {
+                print "File sums to approximately unity:", sum
+            } else {
+                print "File does not sum to unity:", sum
+            }
+        }'
 }
 
 
@@ -408,9 +435,14 @@ fct_dep=$(
 #TODO: Update tracks.f90 to allow specification of dir_out
 #TODO: Update tracks.f90 to handle keyword arguments
 "${dir_scr}/tracks" \
-    "${fil_ip}" "${fil_in}" \
-    "${siz_bin}" "${siz_bin}" \
-    "${chr}"
+    --fil_ip="${fil_ip}" \
+    --fil_in="${fil_in}" \
+    --bin_ip="${siz_bin}" \
+    --bin_in="${siz_bin}" \
+    --dat_ip="${dir_out}/IP_${str_stm}.data" \
+    --dat_in="${dir_out}/in_${str_stm}.data" \
+    --avg_in="${dir_out}/in_avg_${str_stm}.data" \
+    --chr="${chr}"
 
 #  (Add some whitespace to output)
 echo ""
@@ -423,30 +455,31 @@ alf=$("${dir_scr}/get_alpha" "${fil_prm}" "${n_in}" "${n_ip}")
 if ${verbose}; then
     echo -e \
         "file_ip\tfile_in\tchr_1st\tn_lin_ip\tn_lin_in\tlen_avg_in\tfct_dep\talpha" \
-            | tee -a "alpha_etc_${str_stm}.txt"
+            | tee -a "${dir_out}/alpha_etc_${str_stm}.txt"
     echo -e \
         "${fil_ip}\t${fil_in}\t${chr}\t${n_ip}\t${n_in}\t${len_avg}\t${fct_dep}\t${alf}" \
-            | tee -a "alpha_etc_${str_stm}.txt"
+            | tee -a "${dir_out}/alpha_etc_${str_stm}.txt"
     echo ""
     echo ""
 else
     echo -e \
         "file_ip\tfile_in\tchr_1st\tn_lin_ip\tn_lin_in\tlen_avg_in\tfct_dep\talpha" \
-            >> "alpha_etc_${str_stm}.txt"
+            >> "${dir_out}/alpha_etc_${str_stm}.txt"
     echo -e \
         "${fil_ip}\t${fil_in}\t${chr}\t${n_ip}\t${n_in}\t${len_avg}\t${fct_dep}\t${alf}" \
-            >> "alpha_etc_${str_stm}.txt"
+            >> "${dir_out}/alpha_etc_${str_stm}.txt"
 fi
 
 #  Combine IP and input data using alpha and depth factors
 #TODO: Update mergetracks.f90 to allow specification of dir_out
 #TODO: Update mergetracks.f90 to handle keyword arguments
 "${dir_scr}/merge_tracks" \
-    "${dir_scr}/IP.data" \
-    "${dir_scr}/IN.data" \
-    "${alf}" \
-    "${fct_dep}" \
-    "${chr}"
+    --fil_ip="${dir_out}/IP_${str_stm}.data" \
+    --fil_in="${dir_out}/in_${str_stm}.data" \
+    --fil_siq="${dir_out}/merged_siq_${str_stm}.data" \
+    --factr="${alf}" \
+    --dep="${fct_dep}" \
+    --chr="${chr}"
 
 #  (Add some whitespace to output)
 echo ""
@@ -454,22 +487,22 @@ echo ""
 
 #  Write compressed bedGraph of siQ-scaled coverage
 write_check_bdg \
-    --fil_src "mergedSIQ.data" \
+    --fil_src "${dir_out}/merged_siq_${str_stm}.data" \
     --fil_out "${dir_out}/siq_${str_stm}.bdg.gz" \
-    --typ_cvg "siQ-scaled" \
-    --rmv_src
+    --typ_cvg "siQ-scaled" # \
+    # --rmv_src
 
 #  Optionally write non-normalized intermediate IP coverage
 if ${raw}; then
     write_check_bdg \
-        --fil_src "IP.data" \
+        --fil_src "${dir_out}/IP_${str_stm}.data" \
         --fil_out "${dir_out}/raw_IP_${str_stm}.bdg.gz" \
         --typ_cvg "IP intermediate"
 fi
 
 #  Normalize and write IP coverage
 write_check_bdg \
-    --fil_src "IP.data" \
+    --fil_src "${dir_out}/IP_${str_stm}.data" \
     --fil_out "${dir_out}/norm_IP_${str_stm}.bdg.gz" \
     --typ_cvg "IP normalized" \
     --n_lines "${n_ip}" \
@@ -478,15 +511,27 @@ write_check_bdg \
 #  Optionally write non-normalized intermeditae input coverage
 if ${raw}; then
     write_check_bdg \
-        --fil_src "IN.data" \
+        --fil_src "${dir_out}/in_${str_stm}.data" \
         --fil_out "${dir_out}/raw_in_${str_stm}.bdg.gz" \
         --typ_cvg "input intermediate"
 fi
 
 #  Normalize and write input coverage
 write_check_bdg \
-    --fil_src "IN.data" \
+    --fil_src "${dir_out}/in_${str_stm}.data" \
     --fil_out "${dir_out}/norm_in_${str_stm}.bdg.gz" \
     --typ_cvg "input normalized" \
     --n_lines "${n_in}" \
     --rmv_src
+
+#  Check that IP and input normalized coverage sum to unity
+echo "########################################"
+echo "## Check unity of normalized coverage ##"
+echo "########################################"
+echo ""
+check_norm_unity "${dir_out}/norm_IP_${str_stm}.bdg.gz"
+echo ""
+
+check_norm_unity "${dir_out}/norm_in_${str_stm}.bdg.gz"
+echo ""
+echo ""

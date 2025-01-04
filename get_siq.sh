@@ -163,7 +163,8 @@ Arguments:
   -sg, --siz_gen  Effective genome size for model organism (default:
                   ${siz_gen}).
   -do, --dir_out  The directory to write various outfiles.
-   -r, --raw      Write intermediate non-normalized compressed bedGraph files.
+   -r, --raw      Write intermediate non-normalized compressed bedGraph files
+                  (optional).
 
 Dependencies:
   - AWK
@@ -185,7 +186,7 @@ Notes:
 
 Example:
   \`\`\`
-  dir_bas="\${HOME}/repos"  ## WARNING: Change as needed ##
+  dir_bas="\${HOME}/repos"
   dir_rep="\${dir_bas}/protocol_chipseq_signal_norm"
   dir_dat="\${dir_rep}/data"
   dir_cvg="\${dir_dat}/processed/compute_coverage/bowtie2_global_flag-2_mapq-1"
@@ -252,9 +253,9 @@ if [[ -n "${bed_ano}" ]]; then
         exit 1
     fi
 else
-    echo "##########"
-    echo "## Note ##"
-    echo "##########"
+    echo "#########################"
+    echo "## Note on annotations ##"
+    echo "#########################"
     echo ""
     echo \
         "A BED file of annotations for analyzing fragment distributions was" \
@@ -303,6 +304,7 @@ if ${verbose}; then
     echo ""
 fi
 
+#TODO: Give variables clearer names
 z=$(awk '/getTracks/ { print NR }' "${exp_lay}")
 x=$(awk '/getResponse/ { print NR }' "${exp_lay}")
 c=$(awk '/getFracts/ { print NR }' "${exp_lay}")
@@ -342,6 +344,7 @@ if [[ ${z} -lt ${x} && ${x} -lt ${c} && ${c} -lt ${v} ]]; then  # Everything is 
                 # shellcheck disable=SC2046
                 bash "${dir_scr}/run_crunch.sh" \
                     $(if ${verbose}; then echo "--verbose"; fi) \
+                    $(if ${dry_run}; then echo "--dry_run"; fi) \
                     --fil_ip  "${fil_ip}" \
                     --fil_in  "${fil_in}" \
                     --fil_prm "${fil_prm}" \
@@ -362,6 +365,7 @@ if ${has_ano} && [[ 0 -gt 1 ]]; then # for debugg -toggle on if here --- 0 for o
 
     compile_fortran "${dir_scr}/binReads.f90" "${dir_scr}/bin_fragments"
 
+    #TODO: Give variables clearer names
     z=$(awk '/getResponse/ { print NR + 1 }' "${exp_lay}")
     x=$(awk '/getFracts/ { print NR - 1 }' "${exp_lay}")
 
@@ -404,6 +408,7 @@ fi
 ##########
 if ${has_ano} && [[ 0 -gt 1 ]]; then #for debugg  # 2  #OFF
     #compute fractional composition, the user has to adapt scripts to get siq and mass heatmaps
+    #TODO: Give variables clearer names
     z=$(grep -n getFracts ${exp_lay} | sed -e 's/:/ /g' | awk '{ print $1 + 1 }')
     x=$(grep -n END ${exp_lay} | sed -e 's/:/ /g' | awk '{ print $1 - 1 }')
     if [[ ${z} -le ${x} ]]; then
