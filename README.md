@@ -207,7 +207,7 @@ Some of the things you can check before assuming it ran fine:
 
 - Check for filename problems: ```grep 'file or path is incorrect' output.log``` If you get any output, then a file listed in EXPlayout was not found. The output.log file will help you find which file exactly was missing. 
 - Check for potential error in aligned beds: ```grep 'counted it as this    0.000' output.log``` Any output here indicates an error in your aligned bed files. Could be sorting or format errors. Output.log can help you discover which file is broken.
-- Check for fortran memory complaints: ```grep -B1 'Fortran runtime error' outputlog``` Any output here will contain information about exactly what code broke and on what line. After testing on several datasets, I see no reason you should have this error unless it stems from oddities in your data. You will have to investigate case by case and be prepared to validate data anomaly as valid and not as technical issues.
+- Check for fortran memory complaints: ```grep -B1 'Fortran runtime error' outputlog``` Any output here will contain information about exactly what code broke and on what line. After testing on several datasets, I see no reason you should have this error unless it stems from oddities in your data (like contigs and scaffolds). You will have to investigate case by case and be prepared to validate data anomaly as valid and not as technical issues.
 - Sanity check for fragment lengths: compare bioanalyzer lengths and aligned fragment lengths. You should not see a 2x in bioan with no ~2x also in aligned frags. Likely, this error should be brought to my attention and I can help you resolve it.
 
 # The files created.
