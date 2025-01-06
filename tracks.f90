@@ -96,7 +96,7 @@ program tracks
       ! Open output files based on input file type
       if (k .eq. 1) open(88, file = dat_ip)                                                       ! File for treatment data
       if (k .eq. 2) open(88, file = dat_in)                                                       ! File for control data
-      if (k .eq. 2) open(89, file = avg_in)                                                       ! File for averaged control data
+      ! if (k .eq. 2) open(89, file = avg_in)                                                     ! File for averaged control data
    12345 continue  ! Label: Loop back after processing single input line    
       read(12, *, IOSTAT = Reason) unk, ilft, irght, leng                                         ! Read input line: chrom, start, end, length
       if (Reason .gt. 0) then
@@ -133,9 +133,9 @@ program tracks
                      count = count + 1d0                                                          ! Increment range counter
                   enddo
 
-                  if (k .eq. 2) then
-                     write(89, *) unk, leftend, rightend, ave / count                             ! Output average for control data
-                  endif
+                  ! if (k .eq. 2) then
+                  !    write(89, *) unk, leftend, rightend, ave / count                           ! Output average for control data
+                  ! endif
                endif
 
                bin = 0                                                                            ! Reset bin array
@@ -200,10 +200,10 @@ program tracks
                      enddo
                      iindicate = 1
 
-                     if (k .eq. 2) then                                                           ! Special case: If processing control file (k = 2)
-                        ! Output average signal for entire region to separate file
-                        write(89, *) unk, leftend, rightend, ave / count                          ! Write average
-                     endif
+                     ! if (k .eq. 2) then                                                         ! Special case: If processing control file (k = 2)
+                     !    ! Output average signal for entire region to separate file
+                     !    write(89, *) unk, leftend, rightend, ave / count                        ! Write average
+                     ! endif
                   endif
 
                   ! Check that there are no updates to the bins
@@ -279,10 +279,10 @@ program tracks
                      count = count + 1d0
                   enddo                                                                           ! End loop over all bins in the region
 
-                  ! If processing control (k = 2), write average for the region
-                  if (k .eq. 2) then
-                     write(89, *) rchr, leftend, rightend, ave / count
-                  endif
+                  ! ! If processing control (k = 2), write average for the region
+                  ! if (k .eq. 2) then
+                  !    write(89, *) rchr, leftend, rightend, ave / count
+                  ! endif
                endif
 
                ! Reset the bins and associated variables

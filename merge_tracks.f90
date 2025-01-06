@@ -1,8 +1,8 @@
 program tracks
 
    ! Rough documentation:
-   !   'mergetracks' processes IP and input BED files to generate 'merged',
-   !   siQ-scaled data.
+   !   'mergetracks' processes IP and input BED files to generate 'merged'
+   !   (IP ÷ input) siQ-scaled data.
 
    integer bin(100000)
    real * 8 iphits, inhits, totalcount, count, dep, factr
