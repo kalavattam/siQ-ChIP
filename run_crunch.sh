@@ -580,7 +580,7 @@ fi
 
 #  If necessary, compile required Fortran binaries 
 compile_fortran "${dir_scr}/tracks.f90" "${dir_scr}/tracks"
-compile_fortran "${dir_scr}/getalpha.f90" "${dir_scr}/get_alpha"
+compile_fortran "${dir_scr}/get_alpha.f90" "${dir_scr}/get_alpha"
 compile_fortran "${dir_scr}/merge_tracks.f90" "${dir_scr}/merge_tracks"
 
 #  Extract first chromosome of model organism from IP BED file, skipping
