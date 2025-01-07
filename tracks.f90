@@ -20,7 +20,7 @@ program tracks
    character(len = 6) :: unk, rchr                                                                ! Chromosome identifiers
    character(len = 5) :: unk2, rchr2                                                              ! Alternate chromosome identifiers (unused)
    character(len = 44) :: siq                                                                     ! Placeholder for HMM annotations (unused)
-   character(len = 62) :: arg, path(2)                                                            ! Infile paths
+   character(len = 256) :: arg, path(2)                                                            ! Infile paths
    logical :: file_exists                                                                         ! File existence flag
    integer :: inot, iread
    character(len = 256) :: fil_ip, fil_in, dat_ip, dat_in, avg_in                                 ! File paths
@@ -35,9 +35,9 @@ program tracks
    call parse_args(fil_ip, fil_in, bin_ip, bin_in, dat_ip, dat_in, avg_in, rchr)
 
    ! Debug or verify arguments (optional)
-   write(*, *) "######################"
-   write(*, *) "## Parsed arguments ##"
-   write(*, *) "######################"
+   write(*, *) "#################################"
+   write(*, *) "## Parsed arguments for tracks ##"
+   write(*, *) "#################################"
    write(*, *) ""
    write(*, *) "fil_ip=", fil_ip
    write(*, *) "fil_in=", fil_in
@@ -54,14 +54,14 @@ program tracks
    ! Check that IP and input BED files exist
    inquire(file = fil_ip, exist = file_exists)
    if (.not. file_exists) then
-      write(*, *) "Error: IP BED file not found: ", fil_ip
-      stop
+      write(6, *) "Error: IP BED file not found: ", fil_ip
+      stop 1
    endif
 
    inquire(file = fil_in, exist = file_exists)
    if (.not. file_exists) then
-      write(*, *) "Error: Input BED file not found: ", fil_in
-      stop
+      write(6, *) "Error: Input BED file not found: ", fil_in
+      stop 1
    endif
 
    ! Assign file paths to the path array
@@ -370,60 +370,60 @@ contains
          elseif (arg(1:3) == "-c=" .or. arg(1:6) == "--chr=") then
             rchr = trim(adjustl(arg(index(arg, "=") + 1:)))
          else
-            write(*, *) "Error: Unrecognized argument: ", arg
-            stop
+            write(6, *) "Error: Unrecognized argument: ", arg
+            stop 1
          endif
       enddo
 
       ! Check required arguments
       if (fil_ip == "") then
-         write(*, *) "Error: Missing required argument -fp/--fil_ip."
-         stop
+         write(6, *) "Error: Missing required argument -fp/--fil_ip."
+         stop 1
       endif
 
       if (fil_in == "") then
-         write(*, *) "Error: Missing required argument -fn/--fil_in."
-         stop
+         write(6, *) "Error: Missing required argument -fn/--fil_in."
+         stop 1
       endif
 
       if (.not. has_bin_ip) then
-         write(*, *) "Error: Missing required argument -bp/--bin_ip."
-         stop
+         write(6, *) "Error: Missing required argument -bp/--bin_ip."
+         stop 1
       endif
 
       if (bin_ip < 1) then
-         write(*, *) "Error: -bp/--bin_ip must be a positive integer."
-         stop
+         write(6, *) "Error: -bp/--bin_ip must be a positive integer."
+         stop 1
       endif
 
       if (.not. has_bin_in) then
-         write(*, *) "Error: Missing required argument -bn/--bin_in."
-         stop
+         write(6, *) "Error: Missing required argument -bn/--bin_in."
+         stop 1
       endif
 
       if (bin_in < 1) then
-         write(*, *) "Error: -bn/--bin_in must be a positive integer."
-         stop
+         write(6, *) "Error: -bn/--bin_in must be a positive integer."
+         stop 1
       endif
 
       if (dat_ip == "") then
-         write(*, *) "Error: Missing required argument -dp/--dat_ip."
-         stop
+         write(6, *) "Error: Missing required argument -dp/--dat_ip."
+         stop 1
       endif
 
       if (dat_in == "") then
-         write(*, *) "Error: Missing required argument -dn/--dat_in."
-         stop
+         write(6, *) "Error: Missing required argument -dn/--dat_in."
+         stop 1
       endif
 
       if (avg_in == "") then
-         write(*, *) "Error: Missing required argument -an/--avg_in."
-         stop
+         write(6, *) "Error: Missing required argument -an/--avg_in."
+         stop 1
       endif
 
       if (rchr == "") then
-         write(*, *) "Error: Missing required argument -c/--chr."
-         stop
+         write(6, *) "Error: Missing required argument -c/--chr."
+         stop 1
       endif
    end subroutine parse_args
 
@@ -468,8 +468,8 @@ contains
       ! Check if the directory exists
       inquire(file = dir_path, exist = dir_exists)
       if (.not. dir_exists) then
-         write(*, *) "Error: Directory does not exist: ", trim(dir_path)
-         stop
+         write(6, *) "Error: Directory does not exist: ", trim(dir_path)
+         stop 1
       endif
    end subroutine check_exists_dir
 

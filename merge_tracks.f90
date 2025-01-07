@@ -23,9 +23,9 @@ program tracks
    call parse_args(fil_ip, fil_in, fil_siq, factr, dep, rchr)
 
    ! Debug or verify arguments (optional)
-   write(*, *) "######################"
-   write(*, *) "## Parsed arguments ##"
-   write(*, *) "######################"
+   write(*, *) "#######################################"
+   write(*, *) "## Parsed arguments for merge_tracks ##"
+   write(*, *) "#######################################"
    write(*, *) ""
    write(*, *) " fil_ip=", fil_ip
    write(*, *) " fil_in=", fil_in
@@ -33,21 +33,23 @@ program tracks
    write(*, *) "  factr=", factr
    write(*, *) "    dep=", dep
    write(*, *) "    chr=", rchr
+   write(*, *) ""
+   write(*, *) ""
 
    inquire(file = fil_ip, EXIST = file_exists)
    if(file_exists .eqv. .true.)then
       open(12, file = fil_ip)      
    else
-      write(*, *) 'Your first file or path is incorrect.'
-      stop
+      write(6, *) "Error: The first file or path is incorrect."
+      stop 1
    endif
    
    inquire(file = fil_in, EXIST = file_exists)
    if(file_exists .eqv. .true.)then
       open(13, file = fil_in)      
    else
-      write(*,*) 'Your second file or path is incorrect.'
-      stop
+      write(6, *) "Error: The second file or path is incorrect."
+      stop 1
    endif
 
    call check_exists_dir(fil_siq)
@@ -57,14 +59,14 @@ program tracks
 12121 continue
    read(12, *, IOSTAT = Reason) unk, ilft, irght, iphits
    if (Reason .gt. 0) then
-      write(*, *) 'There was an error in input file ', file_ip
-      stop
+      write(6, *) "Error: There was an issue with input file ", file_ip
+      stop 1
    elseif (Reason .eq. 0) then 
 12344    continue
       read(13, *, IOSTAT = Reason2) unk2, ilft2, irght2, inhits
       if (Reason2 .gt. 0) then
-         write(*, *) 'There was an error in input file ', fil_in
-         stop
+         write(6, *) "Error: There was an issue with input file ", fil_in
+         stop 1
       elseif (Reason2 .eq. 0) then
 12345       continue
          if (unk == unk2 .and. ilft .le. irght2 .and. ilft2 .le. irght) then  ! Intersect
@@ -111,7 +113,8 @@ program tracks
    close(88)
    close(12)
    close(13)
-   write(*, *) "i counted it as this ", totalcount, count
+   write(*, *) "totalcount: ", totalcount
+   write(*, *) "count ", count
    ! write(*, '(A)') "totalcount" // CHAR(9) // "count"
    ! write(*, '(F10.3, A, F10.3)') totalcount, CHAR(9), count
 
@@ -172,50 +175,50 @@ contains
          elseif (arg(1:3) == "-c=" .or. arg(1:6) == "--chr=") then
             rchr = trim(adjustl(arg(index(arg, "=") + 1:)))
          else
-            write(*, *) "Error: Unrecognized argument: ", arg
-            stop
+            write(6, *) "Error: Unrecognized argument: ", arg
+            stop 1
          endif
       enddo
    
       ! Check required arguments
       if (fil_ip == "") then
-         write(*, *) "Error: Missing required argument -fp/--fil_ip."
-         stop
+         write(6, *) "Error: Missing required argument -fp/--fil_ip."
+         stop 1
       endif
    
       if (fil_in == "") then
-         write(*, *) "Error: Missing required argument -fn/--fil_in."
-         stop
+         write(6, *) "Error: Missing required argument -fn/--fil_in."
+         stop 1
       endif
    
       if (fil_siq == "") then
-         write(*, *) "Error: Missing required argument -fs/--fil_siq."
-         stop
+         write(6, *) "Error: Missing required argument -fs/--fil_siq."
+         stop 1
       endif
    
       if (.not. has_factr) then
-         write(*, *) "Error: Missing required argument -fa/--factr."
-         stop
+         write(6, *) "Error: Missing required argument -fa/--factr."
+         stop 1
       endif
    
       if (factr <= 0.0d0) then
-         write(*, *) "Error: -fa/--factr must be a positive value greater than zero."
-         stop
+         write(6, *) "Error: -fa/--factr must be a positive value greater than zero."
+         stop 1
       endif
    
       if (.not. has_dep) then
-         write(*, *) "Error: Missing required argument -d/--dep."
-         stop
+         write(6, *) "Error: Missing required argument -d/--dep."
+         stop 1
       endif
    
       if (dep <= 0.0d0) then
-         write(*, *) "Error: -d/--dep must be a positive value greater than zero."
-         stop
+         write(6, *) "Error: -d/--dep must be a positive value greater than zero."
+         stop 1
       endif
    
       if (rchr == "") then
-         write(*, *) "Error: Missing required argument -c/--chr."
-         stop
+         write(6, *) "Error: Missing required argument -c/--chr."
+         stop 1
       endif
    end subroutine parse_args
    
@@ -256,7 +259,7 @@ contains
       ! Check if the directory exists
       inquire(file = dir_path, exist = dir_exists)
       if (.not. dir_exists) then
-         write(*, *) "Error: Directory does not exist: ", trim(dir_path)
+         write(6, *) "Error: Directory does not exist: ", trim(dir_path)
          stop
       endif
    end subroutine check_exists_dir

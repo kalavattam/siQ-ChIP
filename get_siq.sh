@@ -149,7 +149,7 @@ function set_interactive() {
     siz_gen=12157105
     dir_out="${dir_exp}"
     raw=true
-    para="serial"
+    submit="serial"
     nam_job="run_crunch"
     max_job=12
     time="0:30:00"
@@ -166,7 +166,7 @@ siz_bin=30
 siz_gen=12157105
 dir_out=""
 raw=false
-para="gnu"
+submit="serial"
 nam_job="run_crunch"
 max_job=12
 time="0:30:00"
@@ -176,7 +176,7 @@ show_help=$(cat << EOM
 Usage:
   get_siq.sh
     [--verbose] [--dry_run] --exp_lay <str> [--bed_ano <str>] --siz_bin <int>
-    --siz_gen <int> --dir_out <str> [--raw] --nam_job <str> --para <str>
+    --siz_gen <int> --dir_out <str> [--raw] --nam_job <str> --submit <str>
     --max_job <int> --time <str>
 
 Description:
@@ -198,13 +198,17 @@ Arguments:
    -r, --raw      Write intermediate non-normalized (raw) compressed bedGraph
                   files (optional).
   -nj, --nam_job  Names of jobs (default: "${nam_job}").
-   -p, --para     Parallelize job execution; options: "slurm", "gnu", "serial"
-                  (default: "${para}").
+   -s, --submit   Specifies the method for submitting and executing jobs;
+                  options: "slurm", "gnu", "serial" (default: "${submit}").
+                  Details:
+                    + "slurm": Submit jobs via a SLURM scheduler.
+                    + "gnu": Use GNU Parallel for job execution.
+                    + "serial": Run jobs sequentially in a single process.
   -mj, --max_job  The maximum number of jobs to run at one time (required if
-                  '--para "slurm"' or '--para gnu' is specified, and ignored if
-                  '--para serial' is specified; default: ${max_job}).
+                  '--submit slurm' or '--submit gnu' is specified, and ignored
+                  if '--submit serial' is specified; default: ${max_job}).
   -tm, --time     The length of time, in 'mm:ss', 'h:mm:ss', or 'hh:mm:ss'
-                  format, for the SLURM job (required if '--para "slurm"' is
+                  format, for the SLURM job (required if '--submit slurm' is
                   specified, ignored if not; default: "${time}").
 
 Dependencies:
@@ -212,10 +216,11 @@ Dependencies:
   - Bash or Zsh
   - bc (Bash Calculator)
   - BEDTools
+  - Conda (if '--submit slurm')
   - GFortran (GNU Fortran)
-  - GNU Parallel (if '--para gnu')
+  - GNU Parallel (if '--submit gnu')
   - Gnuplot
-  - SLURM (if '--para slurm')
+  - SLURM (if '--submit slurm')
 
 Notes:
   - BED infiles (IP, input, annotations, etc.) must be coordinate-sorted, e.g.,
@@ -226,11 +231,14 @@ Notes:
       cerevisiae R64 genome).
     + If multi-mapping alignments are excluded, compute with the 'khmer' script
       'unique-kmers.py' [e.g., 11624332 for S. cerevisae R64 genome (50-mers)].
-  - When calling 'run_crunch.sh' with SLURM ('sbatch'; i.e., '--para slurm'),
-    provide the script directory path ("\${dir_scr}") as the first positional
-    argument and the name of the Conda environment ("\${env_nam:-env_siqchip}")
-    as the second. These positional arguments are not required for serial
-    execution or when using GNU Parallel.
+  - Notes on calling 'run_crunch.sh' with SLURM ('sbatch'; i.e.,
+    '--submit slurm'):
+    + Provide the script directory path ("\${dir_scr}") as a first positional
+      argument.
+    + Provide the name of the Conda environment ("\${env_nam:-env_siqchip}")
+      as a second positional argument.
+    + These positional arguments are not required for serial execution or when
+      using GNU Parallel.
   - ...
 
 Example:
@@ -247,7 +255,7 @@ Example:
   siz_bin=10
   siz_gen=12157105
   raw=true
-  para="slurm"
+  submit="slurm"
 
   bash "\${HOME}/path/to/repos/siQ-ChIP/get_siq.sh"
       --verbose
@@ -257,7 +265,7 @@ Example:
       --siz_gen \${siz_gen}
       --dir_out "\${dir_exp}"
       \$(if \${raw}; then echo "--raw"; fi)
-      --para "\${para}"
+      --submit "\${submit}"
   \`\`\`
 EOM
 )
@@ -273,18 +281,18 @@ if ${interactive}; then
 else
     while [[ "$#" -gt 0 ]]; do
         case "${1}" in
-             -v|--verbose) verbose=true;   shift 1 ;;
-            -dr|--dry_run) dry_run=true;   shift 1 ;;
-            -el|--exp_lay) exp_lay="${2}"; shift 2 ;;
-            -ba|--bed_ano) bed_ano="${2}"; shift 2 ;;
-            -bs|--siz_bin) siz_bin="${2}"; shift 2 ;;
-            -sg|--siz_gen) siz_gen="${2}"; shift 2 ;;
-            -do|--dir_out) dir_out="${2}"; shift 2 ;;
-             -r|--raw)     raw=true;       shift 1 ;;
-            -nj|--nam_job) nam_job="${2}"; shift 2 ;;
-             -p|--para)    para="${2,,}";  shift 2 ;;
-            -mj|--max_job) max_job="${2}"; shift 2 ;;
-            -tm|--time)    time="${2}";    shift 2 ;;
+             -v|--verbose) verbose=true;    shift 1 ;;
+            -dr|--dry_run) dry_run=true;    shift 1 ;;
+            -el|--exp_lay) exp_lay="${2}";  shift 2 ;;
+            -ba|--bed_ano) bed_ano="${2}";  shift 2 ;;
+            -bs|--siz_bin) siz_bin="${2}";  shift 2 ;;
+            -sg|--siz_gen) siz_gen="${2}";  shift 2 ;;
+            -do|--dir_out) dir_out="${2}";  shift 2 ;;
+             -r|--raw)     raw=true;        shift 1 ;;
+            -nj|--nam_job) nam_job="${2}";  shift 2 ;;
+             -s|--submit)  submit="${2,,}"; shift 2 ;;
+            -mj|--max_job) max_job="${2}";  shift 2 ;;
+            -tm|--time)    time="${2}";     shift 2 ;;
             *)
                 echo "## Unknown parameter passed: ${1} ##" >&2
                 echo "" >&2
@@ -341,13 +349,13 @@ check_flag     "raw"     ${raw}
 
 check_supplied_arg "nam_job" "${nam_job}"
 
-check_supplied_arg "para"    "${para}"
-case "${para}" in
+check_supplied_arg "submit"  "${submit}"
+case "${submit}" in
     slurm|gnu)
         check_supplied_arg "max_job" "${max_job}"
         check_int_nonneg   "max_job" "${max_job}"
 
-        if [[ "${para}" == "slurm" ]]; then
+        if [[ "${submit}" == "slurm" ]]; then
             check_supplied_arg "time" "${time}"
             if [[ ! "${time}" =~ ^([0-9]{1,2}:)?[0-5][0-9]:[0-5][0-9]$ ]]; then
                 echo \
@@ -356,7 +364,7 @@ case "${para}" in
                     "'hh:mm:ss'." >&2
                 if ! ${interactive}; then exit 1; fi
             fi
-        elif [[ "${para}" == "gnu" ]]; then
+        elif [[ "${submit}" == "gnu" ]]; then
             unset time
         fi
         ;;
@@ -365,7 +373,7 @@ case "${para}" in
         ;;
     *)
         echo \
-            "Error: --para was assigned '${para}', but it must be one of" \
+            "Error: --submit was assigned '${submit}', but it must be one of" \
             "'slurm', 'gnu', or 'serial'." >&2
         if ! ${interactive}; then exit 1; fi
         ;;
@@ -387,7 +395,7 @@ if ${verbose}; then
     echo "dir_out=${dir_out}"
     echo "raw=${raw}"
     echo "nam_job=${nam_job}"
-    echo "para=${para}"
+    echo "submit=${submit}"
     echo "max_job=${max_job:-#N/A}"
     echo "time=${time:-#N/A}"
     echo ""
@@ -509,7 +517,7 @@ if [[
                 done
             fi
 
-            case "${para}" in
+            case "${submit}" in
                 serial)
                     if ${verbose} || ${dry_run}; then
                         echo "#####################################"

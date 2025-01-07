@@ -21,14 +21,14 @@ elif [[ -n "${SLURM_ARRAY_TASK_ID:-}" ]]; then
     if [[ -z "${dir_scr}" ]]; then
         echo \
             "Error: Variable 'dir_scr' must be provided as the first" \
-            "argument (positional) when using SLURM." >&2
+            "positional argument when using SLURM." >&2
         exit 1
     fi
 
     if [[ -z "${env_nam}" ]]; then
         echo \
             "Error: Variable 'env_nam' must be provided as the second" \
-            "argument (positional) when using SLURM." >&2
+            "positional argument when using SLURM." >&2
         exit 1
     fi
 
@@ -45,12 +45,16 @@ if [[ ! -d "${dir_scr}" ]]; then
 fi
 
 #TODO: Add 'dry_run' code throughout script
+
 #MAYBE: Have conda not be a dependency of siQ-ChIP, although it only is when
 #       SLURM is used...
+
 #INPROGRESS: Change f90 script names to snake case
-#TODO: Starting at line 650, if verbose=true, then print that files are being
-#      written
-#TODO: Some kind of check for max_job !> no. threads when '--para gnu'
+
+#MAYBE: Starting at line 650, if verbose=true, then print that files are being
+#       written
+
+#TODO: Some kind of check for max_job !> no. threads when '--submit gnu'
 
 
 #  Define functions ===========================================================
@@ -604,6 +608,18 @@ fct_dep=$(
 )
 
 #  Process IP and input files to generate binned coverage files
+if ${verbose}; then
+    echo "${dir_scr}/tracks \\"
+    echo "    --fil_ip=${fil_ip} \\"
+    echo "    --fil_in=${fil_in} \\"
+    echo "    --bin_ip=${siz_bin} \\"
+    echo "    --bin_in=${siz_bin} \\"
+    echo "    --dat_ip=${dir_out}/IP_${str_stm}.data \\"
+    echo "    --dat_in=${dir_out}/in_${str_stm}.data \\"
+    echo "    --avg_in=${dir_out}/in_avg_${str_stm}.data \\"
+    echo "    --chr=${chr}"
+fi
+
 "${dir_scr}/tracks" \
     --fil_ip="${fil_ip}" \
     --fil_in="${fil_in}" \
@@ -619,8 +635,8 @@ echo ""
 echo ""
 
 #  Compute scaling factor alpha
-#TODO: Implement keyword arguments
-alf=$("${dir_scr}/get_alpha" "${fil_prm}" "${n_in}" "${n_ip}")
+#INPROGRESS: Implement keyword arguments
+alf=$("${dir_scr}/get_alpha" -fp="${fil_prm}" -di="${n_in}" -dn="${n_ip}")
 
 #  Save metadata such as file line counts and alpha to a stem-specific TXT file
 if ${verbose}; then
@@ -642,6 +658,22 @@ else
 fi
 
 #  Combine IP and input data using alpha and depth factors
+if ${verbose}; then
+    echo "##########################"
+    echo "## Call to merge_tracks ##"
+    echo "##########################"
+    echo ""
+    echo "${dir_scr}/merge_tracks \\"
+    echo "    --fil_ip=${dir_out}/IP_${str_stm}.data \\"
+    echo "    --fil_in=${dir_out}/in_${str_stm}.data \\"
+    echo "    --fil_siq=${dir_out}/merged_siq_${str_stm}.data \\"
+    echo "    --factr=${alf} \\"
+    echo "    --dep=${fct_dep} \\"
+    echo "    --chr=${chr}"
+    echo ""
+    echo ""
+fi
+
 "${dir_scr}/merge_tracks" \
     --fil_ip="${dir_out}/IP_${str_stm}.data" \
     --fil_in="${dir_out}/in_${str_stm}.data" \
@@ -654,16 +686,13 @@ fi
 echo ""
 echo ""
 
-#  Optionally write non-normalized intermediate IP coverage
+#  Optionally write non-normalized intermediate IP and input coverage
 if ${raw}; then
     write_check_bdg \
         --fil_src "${dir_out}/IP_${str_stm}.data" \
         --fil_out "${dir_out}/raw_IP_${str_stm}.bdg.gz" \
         --typ_cvg "IP intermediate"
-fi
 
-#  Optionally write non-normalized intermeditae input coverage
-if ${raw}; then
     write_check_bdg \
         --fil_src "${dir_out}/in_${str_stm}.data" \
         --fil_out "${dir_out}/raw_in_${str_stm}.bdg.gz" \
