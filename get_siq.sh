@@ -67,7 +67,7 @@ function check_exists_file() {
 }
 
 
-function check_nonempty_file() {
+function check_file_nonempty() {
     local name="${1}"
     local item="${2}"
 
@@ -114,6 +114,43 @@ function check_exists_dir() {
 }
 
 
+#  Function to check if max_job exceeds available system cores
+check_cores_job() {
+    local max_job=${1}
+    local cores
+
+    case "$(uname -s)" in
+        Linux)
+            cores=$(nproc)
+            if [[ ${max_job} -gt ${cores} ]]; then
+                echo \
+                    "Error: --max_job was assigned '${max_job}', which" \
+                    "exceeds number of available cores (${cores}) on" \
+                    "system." >&2
+                return 1
+            fi
+            ;;
+
+        Darwin)  # macOS
+            cores=$(sysctl -n hw.logicalcpu)
+            if [[ ${max_job} -gt ${cores} ]]; then
+                echo \
+                    "Error: --max_job was assigned '${max_job}', which" \
+                    "exceeds number of available cores (${cores}) on" \
+                    "system." >&2
+                return 1
+            fi
+            ;;
+
+        *)
+            echo \
+                "Warning: Unable to determine number of cores on system." \
+                "Proceeding without enforcing --max_job limit." >&2
+            ;;
+    esac
+}
+
+
 #  Function to compile Fortran scripts if necessary
 function compile_fortran() {
     local fil_src="${1}"  # Path to Fortran source file
@@ -150,6 +187,7 @@ function set_interactive() {
     dir_out="${dir_exp}"
     raw=true
     submit="serial"
+    env_nam="env_siqchip"
     nam_job="run_crunch"
     max_job=12
     time="0:30:00"
@@ -167,6 +205,7 @@ siz_gen=12157105
 dir_out=""
 raw=false
 submit="serial"
+env_nam="env_siqchip"
 nam_job="run_crunch"
 max_job=12
 time="0:30:00"
@@ -177,7 +216,7 @@ Usage:
   get_siq.sh
     [--verbose] [--dry_run] --exp_lay <str> [--bed_ano <str>] --siz_bin <int>
     --siz_gen <int> --dir_out <str> [--raw] --nam_job <str> --submit <str>
-    --max_job <int> --time <str>
+    --env_nam <str> --max_job <int> --time <str>
 
 Description:
   #TODO
@@ -204,6 +243,8 @@ Arguments:
                     + "slurm": Submit jobs via a SLURM scheduler.
                     + "gnu": Use GNU Parallel for job execution.
                     + "serial": Run jobs sequentially in a single process.
+  -en, --env_nam  Conda environment to activate (required if '--submit slurm'
+                  is specified; default: "${env_nam}").
   -mj, --max_job  The maximum number of jobs to run at one time (required if
                   '--submit slurm' or '--submit gnu' is specified, and ignored
                   if '--submit serial' is specified; default: ${max_job}).
@@ -235,7 +276,7 @@ Notes:
     '--submit slurm'):
     + Provide the script directory path ("\${dir_scr}") as a first positional
       argument.
-    + Provide the name of the Conda environment ("\${env_nam:-env_siqchip}")
+    + Provide the name of the Conda environment ("\${env_nam}")
       as a second positional argument.
     + These positional arguments are not required for serial execution or when
       using GNU Parallel.
@@ -291,6 +332,7 @@ else
              -r|--raw)     raw=true;        shift 1 ;;
             -nj|--nam_job) nam_job="${2}";  shift 2 ;;
              -s|--submit)  submit="${2,,}"; shift 2 ;;
+            -en|--env_nam) env_nam="${2}";  shift 2 ;;
             -mj|--max_job) max_job="${2}";  shift 2 ;;
             -tm|--time)    time="${2}";     shift 2 ;;
             *)
@@ -304,18 +346,18 @@ else
 fi
 
 #  Check arguments
-check_flag      "verbose" ${verbose}
+check_flag          "verbose" ${verbose}
 
-check_flag      "dry_run" ${dry_run}
+check_flag          "dry_run" ${dry_run}
 
 check_supplied_arg  "exp_lay" "${exp_lay}"
 check_exists_file   "exp_lay" "${exp_lay}"
-check_nonempty_file "exp_lay" "${exp_lay}"
+check_file_nonempty "exp_lay" "${exp_lay}"
 
 if [[ -n "${bed_ano}" ]]; then
     if \
            check_exists_file   "bed_ano" "${bed_ano}" \
-        && check_nonempty_file "bed_ano" "${bed_ano}"
+        && check_file_nonempty "bed_ano" "${bed_ano}"
     then
         has_ano=true
     else
@@ -345,7 +387,7 @@ check_int_nonneg   "siz_gen" "${siz_gen}"
 check_supplied_arg "dir_out" "${dir_out}"
 check_exists_dir   "dir_out" "${dir_out}"
 
-check_flag     "raw"     ${raw}
+check_flag         "raw"     ${raw}
 
 check_supplied_arg "nam_job" "${nam_job}"
 
@@ -356,6 +398,8 @@ case "${submit}" in
         check_int_nonneg   "max_job" "${max_job}"
 
         if [[ "${submit}" == "slurm" ]]; then
+            check_supplied_arg "env_nam" "${env_nam}"
+
             check_supplied_arg "time" "${time}"
             if [[ ! "${time}" =~ ^([0-9]{1,2}:)?[0-5][0-9]:[0-5][0-9]$ ]]; then
                 echo \
@@ -366,11 +410,14 @@ case "${submit}" in
             fi
         elif [[ "${submit}" == "gnu" ]]; then
             unset time
+            check_cores_job "${max_job}"
         fi
         ;;
+
     serial)
         unset max_job time
         ;;
+
     *)
         echo \
             "Error: --submit was assigned '${submit}', but it must be one of" \
@@ -579,10 +626,10 @@ if [[
                         echo "    --time=${time} \\"
                         echo "    --output=${dir_out}/logs/${nam_job}.%A-%a.stdout.txt \\"
                         echo "    --error=${dir_out}/logs/${nam_job}.%A-%a.stderr.txt \\"
-                        echo "    --array=1-${#arr_ip[@]}%${max_job:-12} \\"
+                        echo "    --array=1-${#arr_ip[@]}%${max_job} \\"
                         echo "    ${dir_scr}/run_crunch.sh \\"
                         echo "        ${dir_scr} \\"
-                        echo "        ${env_nam:-env_siqchip} \\"
+                        echo "        ${env_nam} \\"
                         echo "        $(if ${verbose}; then echo "--verbose"; fi) \\"
                         echo "        $(if ${dry_run}; then echo "--dry_run"; fi) \\"
                         echo "        --fil_ip $(echo "${arr_ip[*]}" | tr ' ' ',') \\"
@@ -606,10 +653,10 @@ if [[
                             --time=${time} \
                             --output=${dir_out}/logs/${nam_job}.%A-%a.stdout.txt \
                             --error=${dir_out}/logs/${nam_job}.%A-%a.stderr.txt \
-                            --array=1-${#arr_ip[@]}%${max_job:-12} \
+                            --array=1-${#arr_ip[@]}%${max_job} \
                             ${dir_scr}/run_crunch.sh \
                                 ${dir_scr} \
-                                ${env_nam:-env_siqchip} \
+                                ${env_nam} \
                                 $(if ${verbose}; then echo "--verbose"; fi) \
                                 $(if ${dry_run}; then echo "--dry_run"; fi) \
                                 --fil_ip $(echo "${arr_ip[*]}" | tr ' ' ',') \
@@ -637,13 +684,17 @@ if [[
                     cmd+=" --str_stm {4} --siz_bin {5} --siz_gen {6}"
                     cmd+=" --dir_out {7}"
 
+                    #  Add redirections for logging
+                    cmd+="  > {7}/logs/{8}.{4}.stdout.txt"
+                    cmd+=" 2> {7}/logs/{8}.{4}.stderr.txt"
+
                     if ${dry_run} || ${verbose}; then
                         {
                             echo "#############################"
                             echo "## Call(s) to GNU Parallel ##"
                             echo "#############################"
                             echo ""
-                            parallel --colsep ' ' --jobs "${max_job:-12}" --dry-run \
+                            parallel --colsep ' ' --jobs "${max_job}" --dry-run \
                                 "${cmd}" \
                                 ::: "${arr_ip[@]}" \
                                 :::+ "${arr_in[@]}" \
@@ -651,17 +702,16 @@ if [[
                                 :::+ "${arr_stm[@]}" \
                                 ::: "${siz_bin}" \
                                 ::: "${siz_gen}" \
-                                ::: "${dir_out}"
+                                ::: "${dir_out}" \
+                                ::: "${nam_job}"
                             echo ""
                         } \
                              > >(tee -a "${dir_out}/logs/${nam_job}.stdout.txt") \
                             2> >(tee -a "${dir_out}/logs/${nam_job}.stderr.txt")
                     fi
-                    #TODO: Troubleshoot errors saying std{out,err} files don't exist
-                    #      Prob b/c forgot to 'mkdir logs' in $dir_exp...
 
                     if ! ${dry_run}; then
-                        parallel --colsep ' ' --jobs "${max_job:-12}" \
+                        parallel --colsep ' ' --jobs "${max_job}" \
                             "${cmd}" \
                             ::: "${arr_ip[@]}" \
                             :::+ "${arr_in[@]}" \
@@ -669,12 +719,13 @@ if [[
                             :::+ "${arr_stm[@]}" \
                             ::: "${siz_bin}" \
                             ::: "${siz_gen}" \
-                            ::: "${dir_out}"
+                            ::: "${dir_out}" \
+                            ::: "${nam_job}"
                     fi
-                    #TODO: Need to handle writing of std{out,err} files; otherwise, works!
                     ;;
             esac
-            # unset ln_trk ln_rsp ln_frc ln_end cmd grp_smp
+            
+            unset ln_trk ln_rsp ln_frc ln_end cmd grp_smp
         fi
     fi
 fi

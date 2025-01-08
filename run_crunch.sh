@@ -3,7 +3,7 @@
 #  run_crunch.sh
 #  BD
 
-#  Run script in interactive/test mode (true) or command-line mode (false)
+#  Run script in interactive/test mode (true) or command line mode (false)
 interactive=false
 
 #  Exit on errors, unset variables, or pipe failures if not in "interactive
@@ -16,45 +16,90 @@ if ${interactive}; then
     dir_scr="${HOME}/repos/siQ-ChIP"
     env_nam=""  # Unused in interactive mode
 elif [[ -n "${SLURM_ARRAY_TASK_ID:-}" ]]; then
+    #  Check that first positional argument is valid
     dir_scr="${1:-}"
-    env_nam="${2:-}"
     if [[ -z "${dir_scr}" ]]; then
         echo \
-            "Error: Variable 'dir_scr' must be provided as the first" \
-            "positional argument when using SLURM." >&2
+            "Error: 'dir_scr' (script directory) must be provided as the" \
+            "first positional argument when using SLURM." >&2
+        exit 1
+    elif [[ "${dir_scr}" =~ ^-+ ]]; then
+        echo \
+            "Error: Invalid argument starting with '-': '${dir_scr}'." \
+            "First positional argument 'dir_scr' must be a valid directory" \
+            "path. Did you pass a keyword argument or flag instead?" >&2
         exit 1
     fi
 
+    #  Check that second positional argument is valid
+    env_nam="${2:-}"
     if [[ -z "${env_nam}" ]]; then
         echo \
-            "Error: Variable 'env_nam' must be provided as the second" \
-            "positional argument when using SLURM." >&2
+            "Error: 'env_nam' (Conda environment name) must be provided as" \
+            "the second positional argument when using SLURM." >&2
+        exit 1
+    elif [[ "${env_nam}" =~ ^-+ ]]; then
+        echo \
+            "Error: Invalid argument starting with '-': '${env_nam}'." \
+            "Second positional argument 'env_nam' must be a valid Conda" \
+            "environment name. Did you pass a keyword argument or flag" \
+            "instead?" >&2
+        exit 1
+    elif [[ ! "${env_nam}" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+        echo \
+            "Error: Invalid Conda environment name: '${env_nam}'. Names must" \
+            "only contain letters, numbers, underscores, and dashes." >&2
         exit 1
     fi
 
+    #  Validate Conda
+    if ! command -v conda &> /dev/null; then
+        echo \
+            "Error: Conda is not installed or not accessible in the current" \
+            "environment. Conda is required for SLURM job array" \
+            "submissions." >&2
+        exit 1
+    fi
+
+    #  Validate supplied environment
+    if ! conda env list | grep -q "^${env_nam}\b"; then
+        echo \
+            "Error: Conda environment '${env_nam}' not found in list of" \
+            "installed environments." >&2
+        exit 1
+    fi
+
+    #  Activate Conda environment
+    if [[ "${CONDA_DEFAULT_ENV}" != "${env_nam}" ]]; then
+        eval "$(conda shell.bash hook)"
+        if ! conda activate "${env_nam}"; then
+            echo \
+                "Error: Failed to activate Conda environment '${env_nam}'." \
+                "Ensure it exists and is correctly configured." >&2
+            exit 1
+        fi
+    fi
+
+    #  Shift away positional arguments
     shift 2
 else
     dir_scr="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     env_nam=""  # Unused in non-SLURM mode
 fi
 
-#  Validate path to directory containing scripts
+#  Validate path to, and readability of, directory containing scripts
 if [[ ! -d "${dir_scr}" ]]; then
     echo "Error: Script directory is invalid: '${dir_scr}'." >&2
+    exit 1
+elif [[ ! -r "${dir_scr}" ]]; then
+    echo "Error: Script directory is not readable: '${dir_scr}'." >&2
     exit 1
 fi
 
 #TODO: Add 'dry_run' code throughout script
 
-#MAYBE: Have conda not be a dependency of siQ-ChIP, although it only is when
-#       SLURM is used...
-
-#INPROGRESS: Change f90 script names to snake case
-
 #MAYBE: Starting at line 650, if verbose=true, then print that files are being
 #       written
-
-#TODO: Some kind of check for max_job !> no. threads when '--submit gnu'
 
 
 #  Define functions ===========================================================
@@ -146,26 +191,6 @@ function check_exists_dir() {
             "Error: Directory associated with --${name} does not exist:" \
             "'${item}'." >&2
         return 1
-    fi
-}
-
-
-#  Function to compile Fortran scripts if necessary
-function compile_fortran() {
-    local fil_src="${1}"  # Path to Fortran source file
-    local fil_bin="${2}"  # Path to output binary file
-
-    if [[ ! -f "${fil_bin}" || "${fil_src}" -nt "${fil_bin}" ]]; then
-        if ${dry_run:-false}; then
-            echo "Dry run: Would compile '${fil_src}' -> '${fil_bin}'."
-        else
-            if ! \
-                gfortran -O3 -fbounds-check -o "${fil_bin}" "${fil_src}"
-            then
-                echo "Error: Failed to compile '${fil_src}'." >&2
-                return 1
-            fi
-        fi
     fi
 }
 
@@ -424,46 +449,8 @@ while [[ "$#" -gt 0 ]]; do
     esac
 done
 
-#  Perform additional parsing and validation for SLURM array job submission
+#  Perform additional parsing for SLURM array job submission
 if [[ -n "${SLURM_ARRAY_TASK_ID:-}" ]]; then
-    if [[ -z "${dir_scr}" ]]; then
-        echo \
-            "Error: Variable 'dir_scr' is empty; 'dir_scr' should be" \
-            "assigned the path to the script directory as the first" \
-            "positional argument when running with SLURM." >&2
-        exit 1
-    fi
-
-    #  Validate Conda and supplied environment, then activate environment
-    if ! command -v conda &> /dev/null; then
-        echo \
-            "Error: Conda is not installed or not accessible in the current" \
-            "environment." >&2
-        exit 1
-    fi
-
-    if [[ -n "${env_nam}" ]]; then
-        if ! conda env list | grep -q "^${env_nam}\b"; then
-            echo \
-                "Error: Conda environment '${env_nam}' does not exist." >&2
-            exit 1
-        fi
-    else
-        echo \
-            "Error: Variable 'env_nam' is empty; please provide a valid" \
-            "Conda environment name." >&2
-        exit 1
-    fi
-
-    if [[ "${CONDA_DEFAULT_ENV}" != "${env_nam}" ]]; then
-        eval "$(conda shell.bash hook)"
-        if ! conda activate "${env_nam}"; then
-            echo \
-                "Error: Failed to activate environment '${env_nam}'." >&2
-                exit 1
-        fi
-    fi
-
     #  Use SLURM_ARRAY_TASK_ID to determine current task
     IFS=',' read -r -a arr_fil_ip <<< "${fil_ip}"
     IFS=',' read -r -a arr_fil_in <<< "${fil_in}"
@@ -582,11 +569,6 @@ if ${verbose}; then
     echo ""
 fi
 
-#  If necessary, compile required Fortran binaries 
-compile_fortran "${dir_scr}/tracks.f90" "${dir_scr}/tracks"
-compile_fortran "${dir_scr}/get_alpha.f90" "${dir_scr}/get_alpha"
-compile_fortran "${dir_scr}/merge_tracks.f90" "${dir_scr}/merge_tracks"
-
 #  Extract first chromosome of model organism from IP BED file, skipping
 #+ headers or empty lines if present
 chr=$(awk 'NR > 1 && $1 !~ /^#/ && NF >= 3 { print $1; exit }' "${fil_ip}")
@@ -609,6 +591,10 @@ fct_dep=$(
 
 #  Process IP and input files to generate binned coverage files
 if ${verbose}; then
+    echo "####################"
+    echo "## Call to tracks ##"
+    echo "####################"
+    echo ""
     echo "${dir_scr}/tracks \\"
     echo "    --fil_ip=${fil_ip} \\"
     echo "    --fil_in=${fil_in} \\"
@@ -618,6 +604,8 @@ if ${verbose}; then
     echo "    --dat_in=${dir_out}/in_${str_stm}.data \\"
     echo "    --avg_in=${dir_out}/in_avg_${str_stm}.data \\"
     echo "    --chr=${chr}"
+    echo ""
+    echo ""
 fi
 
 "${dir_scr}/tracks" \
@@ -723,9 +711,9 @@ write_check_bdg \
     --rmv_src
 
 #  Check that IP and input normalized coverage sum to unity
-echo "#########################"
-echo "## Check coverage sums ##"
-echo "#########################"
+echo "###################################"
+echo "## Check coverage sums and unity ##"
+echo "###################################"
 echo ""
 
 if ${raw}; then
