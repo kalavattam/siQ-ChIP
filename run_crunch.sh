@@ -236,7 +236,7 @@ function write_check_bdg() {
 
     #  Parse keyword parameters
     while [[ $# -gt 0 ]]; do
-        case "$1" in
+        case "${1}" in
              -s|--fil_src) fil_src="${2}"; shift 2 ;;
              -o|--fil_out) fil_out="${2}"; shift 2 ;;
             -tc|--typ_cvg) typ_cvg="${2}"; shift 2 ;;

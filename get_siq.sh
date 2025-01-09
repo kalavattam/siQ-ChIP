@@ -18,8 +18,6 @@ else
     dir_scr="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 fi
 
-#TODO: Implement argument for env_nam (only used when running jobs with SLURM)
-
 
 #  Define functions ===========================================================
 function check_flag() {
@@ -219,7 +217,31 @@ Usage:
     --env_nam <str> --max_job <int> --time <str>
 
 Description:
-  #TODO
+  This driver script, 'get_siq.sh', automates the generation of siQ-ChIP
+  coverage tracks and other associated analyses reported in Dickson et al., Sci
+  Rep 2023 (PMID: 37160995). It parses an experiment layout file to identify
+  input data, such as BED files for immunoprecipitated (IP) and input DNA
+  fragments (post alignment), and generates normalized, raw (optional), and
+  siQ-scaled coverage tracks. The script defaults to sequential execution
+  but can leverage parallelization when specified, supporting parallelization
+  via SLURM on high-performance compute clusters or GNU Parallel for local or
+  remote execution.
+
+  The main features of this script include:
+    - Parsing experiment layout files to extract metadata for track generation
+      and comparisons.
+    - Validating and preprocessing input files, including BED annotations.
+    - Computing binned coverage and generating siQ-scaled coverage tracks for
+      use in comparative ChIP-seq analyses.
+    - Supporting parallel execution and job submission via SLURM or GNU
+      Parallel.
+    - Optionally creating raw, intermediate bedGraph files for inspection or
+      additional analyses.
+
+  The script integrates with protocol_chipseq_signal_norm
+  (github.com/kalavattam/protocol_chipseq_signal_norm), and its utility
+  scripts and functions, enabling a streamlined workflow for ChIP-seq data
+  analysis.
 
 Arguments:
    -h, --help     Print this help message and exit.
@@ -244,7 +266,7 @@ Arguments:
                     + "gnu": Use GNU Parallel for job execution.
                     + "serial": Run jobs sequentially in a single process.
   -en, --env_nam  Conda environment to activate (required if '--submit slurm'
-                  is specified; default: "${env_nam}").
+                  is specified, ignored it not; default: "${env_nam}").
   -mj, --max_job  The maximum number of jobs to run at one time (required if
                   '--submit slurm' or '--submit gnu' is specified, and ignored
                   if '--submit serial' is specified; default: ${max_job}).
@@ -264,42 +286,56 @@ Dependencies:
   - SLURM (if '--submit slurm')
 
 Notes:
+  - Users should verify that all specified directories and files exist and are
+    accessible prior to running the script.
   - BED infiles (IP, input, annotations, etc.) must be coordinate-sorted, e.g.,
     via 'sort -k1,1 -k2,2n'.
   - Notes on effective genome size:
     + If any multi-mapping alignments are included in IP and input BED files,
-      compute effective genome size with 'faCount' (e.g., 12157105 for S.
-      cerevisiae R64 genome).
-    + If multi-mapping alignments are excluded, compute with the 'khmer' script
-      'unique-kmers.py' [e.g., 11624332 for S. cerevisae R64 genome (50-mers)].
+      compute effective genome size from a reference genome with 'faCount'
+      (e.g., 12157105 for the S. cerevisiae S288C R64 reference genome).
+    + If multi-mapping alignments are excluded, compute based on unique k-mers
+      with, e.g., the 'khmer' script 'unique-kmers.py' [e.g., 11624332 for S.
+      cerevisae S288C R64 reference genome (50-mers)].
   - Notes on calling 'run_crunch.sh' with SLURM ('sbatch'; i.e.,
-    '--submit slurm'):
-    + Provide the script directory path ("\${dir_scr}") as a first positional
+    '--submit slurm'); SLURM-based execution of 'run_crunch.sh' requires
+    + ...an explicit path to the siQ-ChIP repository base ("scripts") directory:
+      when '--submit slurm', the call to 'run_crunch.sh' is hardcoded to have
+      "\${dir_scr}" as a first positional argument.
+    + ...a specified Conda environment: when '--submit slurm', the call to
+      'run_crunch.sh' is hardcoded to have "\${env_nam}" as a second positional
       argument.
-    + Provide the name of the Conda environment ("\${env_nam}")
-      as a second positional argument.
-    + These positional arguments are not required for serial execution or when
-      using GNU Parallel.
+    + ...a valid time limit in the format 'mm:ss', 'h:mm:ss', or 'hh:mm:ss'.
+    + Neither the positional arguments nor the time limit are required for
+      parallelization with GNU Parallel or sequential execution.
   - ...
 
 Example:
   \`\`\`
+  #  Define base directory for repositories
   dir_bas="\${HOME}/repos"
+
+  #  Define paths to protocol repository and its subdirectories
   dir_rep="\${dir_bas}/protocol_chipseq_signal_norm"
   dir_dat="\${dir_rep}/data"
   dir_cvg="\${dir_dat}/processed/compute_coverage/bowtie2_global_flag-2_mapq-1"
   dir_exp="\${dir_cvg}/siqchip"
   dir_doc="\${dir_exp}/docs"
 
-  pth_exp="\${dir_doc}/EXPlayout"
-  pth_ano="\${dir_doc}/Annotations.bed"
-  siz_bin=10
-  siz_gen=12157105
-  raw=true
-  submit="slurm"
-
+  #  Set script arguments
+  verbose=true                           # Enable verbose mode for detailed output
+  pth_exp="\${dir_doc}/EXPlayout"        # Path to experiment layout file
+  pth_ano="\${dir_doc}/Annotations.bed"  # Path to BED annotations (optional)
+  siz_bin=10                             # Bin size in base pairs for coverage
+  siz_gen=12157105                       # Effective genome size for *S. cerevisiae*
+  raw=true                               # Generate raw intermediate files (optional)
+  submit="slurm"                         # Specify SLURM for parallel execution
+  env_nam="env_siq"                      # Conda environment for SLURM
+  time="30:00"                           # Time limit for SLURM jobs
+  
+  #  Run driver script 'get_siq.sh'
   bash "\${HOME}/path/to/repos/siQ-ChIP/get_siq.sh"
-      --verbose
+      \$(if \${verbose}; then echo "--verbose"; fi)
       --exp_lay "\${pth_exp}"
       --bed_ano "\${pth_ano}"
       --siz_bin \${siz_bin}
@@ -307,6 +343,8 @@ Example:
       --dir_out "\${dir_exp}"
       \$(if \${raw}; then echo "--raw"; fi)
       --submit "\${submit}"
+      --env_nam "\${env_nam}"
+      --time "\${time}"
   \`\`\`
 EOM
 )
