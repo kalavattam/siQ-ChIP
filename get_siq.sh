@@ -25,7 +25,7 @@ function check_flag() {
     local value="${2}"
 
     if [[ -z "${value}" ]]; then
-        echo "Error: Flag --${name} is not set." >&2
+        echo "Error: Flag '--${name}' is not set." >&2
         return 1
     fi
 
@@ -33,7 +33,7 @@ function check_flag() {
         true|false) return 0 ;;
         *)
             echo \
-                "Error: Flag --${name} must be Boolean 'true' or 'false'," \
+                "Error: Flag '--${name}' must be Boolean 'true' or 'false'," \
                 "but got '${value}'." >&2
             return 1
             ;;
@@ -46,7 +46,7 @@ function check_supplied_arg() {
     local asgn="${2}"
 
     if [[ -z "${asgn}" ]]; then
-        echo "Error: --${name} is required." >&2
+        echo "Error: '--${name}' is required." >&2
         return 1
     fi
 }
@@ -58,7 +58,7 @@ function check_exists_file() {
 
     if [[ ! -f "${item}" ]]; then
         echo \
-            "Error: File associated with --${name} does not exist:" \
+            "Error: File associated with '--${name}' does not exist:" \
             "'${item}'." >&2
         return 1
     fi
@@ -71,7 +71,7 @@ function check_file_nonempty() {
 
     if [[ ! -s "${item}" ]]; then
         echo \
-            "Error: File associated with --${name} is empty: '${item}'." >&2
+            "Error: File associated with '--${name}' is empty: '${item}'." >&2
         return 1
     fi
 }
@@ -84,7 +84,7 @@ function check_int_nonneg() {
     #  Return error message if value is empty
     if [[ -z "${value}" ]]; then
         echo \
-            "Error: --${name} is empty but must be assigned a non-negative" \
+            "Error: '--${name}' is empty but must be assigned a non-negative" \
             "integer." >&2
         return 1
     fi
@@ -92,7 +92,7 @@ function check_int_nonneg() {
     #  Validate that value is a non-negative integer
     if ! [[ "${value}" =~ ^[0-9]+$ ]]; then    
         echo \
-            "Error: --${name} was assigned '${value}' but must be a" \
+            "Error: '--${name}' was assigned '${value}' but must be a" \
             "non-negative integer." >&2
         return 1
     fi
@@ -105,7 +105,7 @@ function check_exists_dir() {
 
     if ! [[ -d "${item}" ]]; then
         echo \
-            "Error: Directory associated with --${name} does not exist:" \
+            "Error: Directory associated with '--${name}' does not exist:" \
             "'${item}'." >&2
         return 1
     fi
@@ -113,7 +113,7 @@ function check_exists_dir() {
 
 
 #  Function to check if max_job exceeds available system cores
-check_cores_job() {
+function check_cores_job() {
     local max_job=${1}
     local cores
 
@@ -122,7 +122,7 @@ check_cores_job() {
             cores=$(nproc)
             if [[ ${max_job} -gt ${cores} ]]; then
                 echo \
-                    "Error: --max_job was assigned '${max_job}', which" \
+                    "Error: '--max_job' was assigned '${max_job}', which" \
                     "exceeds number of available cores (${cores}) on" \
                     "system." >&2
                 return 1
@@ -133,7 +133,7 @@ check_cores_job() {
             cores=$(sysctl -n hw.logicalcpu)
             if [[ ${max_job} -gt ${cores} ]]; then
                 echo \
-                    "Error: --max_job was assigned '${max_job}', which" \
+                    "Error: '--max_job' was assigned '${max_job}', which" \
                     "exceeds number of available cores (${cores}) on" \
                     "system." >&2
                 return 1
@@ -143,7 +143,7 @@ check_cores_job() {
         *)
             echo \
                 "Warning: Unable to determine number of cores on system." \
-                "Proceeding without enforcing --max_job limit." >&2
+                "Proceeding without enforcing '--max_job' limit." >&2
             ;;
     esac
 }
@@ -156,7 +156,7 @@ function compile_fortran() {
 
     if [[ ! -f "${fil_bin}" || "${fil_src}" -nt "${fil_bin}" ]]; then
         if ${dry_run}; then
-            echo "Would compile: ${fil_src} -> ${fil_bin}"
+            echo "Would compile: '${fil_src} -> ${fil_bin}'."
         else
             gfortran -O3 -fbounds-check -o "${fil_bin}" "${fil_src}"
         fi
@@ -183,7 +183,7 @@ function set_interactive() {
     siz_bin=1
     siz_gen=12157105
     dir_out="${dir_exp}"
-    raw=true
+    frag=true
     submit="serial"
     env_nam="env_siqchip"
     nam_job="run_crunch"
@@ -201,7 +201,7 @@ bed_ano=""
 siz_bin=30
 siz_gen=12157105
 dir_out=""
-raw=false
+frag=false
 submit="serial"
 env_nam="env_siqchip"
 nam_job="run_crunch"
@@ -213,19 +213,19 @@ show_help=$(cat << EOM
 Usage:
   get_siq.sh
     [--verbose] [--dry_run] --exp_lay <str> [--bed_ano <str>] --siz_bin <int>
-    --siz_gen <int> --dir_out <str> [--raw] --nam_job <str> --submit <str>
+    --siz_gen <int> --dir_out <str> [--frag] --nam_job <str> --submit <str>
     --env_nam <str> --max_job <int> --time <str>
 
 Description:
   This driver script, 'get_siq.sh', automates the generation of siQ-ChIP
   coverage tracks and other associated analyses reported in Dickson et al., Sci
   Rep 2023 (PMID: 37160995). It parses an experiment layout file to identify
-  input data, such as BED files for immunoprecipitated (IP) and input DNA
-  fragments (post alignment), and generates normalized, raw (optional), and
-  siQ-scaled coverage tracks. The script defaults to sequential execution
-  but can leverage parallelization when specified, supporting parallelization
-  via SLURM on high-performance compute clusters or GNU Parallel for local or
-  remote execution.
+  data, such as BED files for immunoprecipitated (IP) and input DNA fragments
+  (post alignment), and returns fragment length-normalized (optional), fragment
+  length-/unity-normalized, and siQ-scaled coverage tracks. The script defaults
+  to sequential execution but can leverage parallelization when specified,
+  supporting parallelization via SLURM on high-performance compute clusters or
+  GNU Parallel for local or remote execution.
 
   The main features of this script include:
     - Parsing experiment layout files to extract metadata for track generation
@@ -235,13 +235,13 @@ Description:
       use in comparative ChIP-seq analyses.
     - Supporting parallel execution and job submission via SLURM or GNU
       Parallel.
-    - Optionally creating raw, intermediate bedGraph files for inspection or
-      additional analyses.
+    - Optionally creating intermediate fragment length-normalized bedGraph
+      files for inspection or additional analyses.
 
-  The script integrates with protocol_chipseq_signal_norm
+  The script integrates with 'protocol_chipseq_signal_norm'
   (github.com/kalavattam/protocol_chipseq_signal_norm), and its utility
   scripts and functions, enabling a streamlined workflow for ChIP-seq data
-  analysis.
+  processing.
 
 Arguments:
    -h, --help     Print this help message and exit.
@@ -256,8 +256,8 @@ Arguments:
   -sg, --siz_gen  Effective genome size for model organism (default:
                   ${siz_gen}).
   -do, --dir_out  The directory to write various outfiles.
-   -r, --raw      Write intermediate non-normalized (raw) compressed bedGraph
-                  files (optional).
+  -fg, --frag     Write intermediate fragment length-normalized coverage in
+                  compressed bedGraph files (optional).
   -nj, --nam_job  Names of jobs (default: "${nam_job}").
    -s, --submit   Specifies the method for submitting and executing jobs;
                   options: "slurm", "gnu", "serial" (default: "${submit}").
@@ -297,7 +297,7 @@ Notes:
     + If multi-mapping alignments are excluded, compute based on unique k-mers
       with, e.g., the 'khmer' script 'unique-kmers.py' [e.g., 11624332 for S.
       cerevisae S288C R64 reference genome (50-mers)].
-  - Notes on calling 'run_crunch.sh' with SLURM ('sbatch'; i.e.,
+  - Notes on calling 'run_crunch.sh' with SLURM ('sbatch', i.e.,
     '--submit slurm'); SLURM-based execution of 'run_crunch.sh' requires
     + ...an explicit path to the siQ-ChIP repository base ("scripts") directory:
       when '--submit slurm', the call to 'run_crunch.sh' is hardcoded to have
@@ -307,7 +307,7 @@ Notes:
       argument.
     + ...a valid time limit in the format 'mm:ss', 'h:mm:ss', or 'hh:mm:ss'.
     + Neither the positional arguments nor the time limit are required for
-      parallelization with GNU Parallel or sequential execution.
+      GNU Parallel parallelization or sequential execution.
   - ...
 
 Example:
@@ -328,12 +328,12 @@ Example:
   pth_ano="\${dir_doc}/Annotations.bed"  # Path to BED annotations (optional)
   siz_bin=10                             # Bin size in base pairs for coverage
   siz_gen=12157105                       # Effective genome size for *S. cerevisiae*
-  raw=true                               # Generate raw intermediate files (optional)
+  frag=true                              # Generate intermediate files (optional)
   submit="slurm"                         # Specify SLURM for parallel execution
   env_nam="env_siq"                      # Conda environment for SLURM
   time="30:00"                           # Time limit for SLURM jobs
   
-  #  Run driver script 'get_siq.sh'
+  #  Run driver script 'get_siq.sh' with SLURM
   bash "\${HOME}/path/to/repos/siQ-ChIP/get_siq.sh"
       \$(if \${verbose}; then echo "--verbose"; fi)
       --exp_lay "\${pth_exp}"
@@ -341,7 +341,7 @@ Example:
       --siz_bin \${siz_bin}
       --siz_gen \${siz_gen}
       --dir_out "\${dir_exp}"
-      \$(if \${raw}; then echo "--raw"; fi)
+      \$(if \${frag}; then echo "--frag"; fi)
       --submit "\${submit}"
       --env_nam "\${env_nam}"
       --time "\${time}"
@@ -367,7 +367,7 @@ else
             -bs|--siz_bin) siz_bin="${2}";  shift 2 ;;
             -sg|--siz_gen) siz_gen="${2}";  shift 2 ;;
             -do|--dir_out) dir_out="${2}";  shift 2 ;;
-             -r|--raw)     raw=true;        shift 1 ;;
+            -fg|--frag)    frag=true;       shift 1 ;;
             -nj|--nam_job) nam_job="${2}";  shift 2 ;;
              -s|--submit)  submit="${2,,}"; shift 2 ;;
             -en|--env_nam) env_nam="${2}";  shift 2 ;;
@@ -425,7 +425,7 @@ check_int_nonneg   "siz_gen" "${siz_gen}"
 check_supplied_arg "dir_out" "${dir_out}"
 check_exists_dir   "dir_out" "${dir_out}"
 
-check_flag         "raw"     ${raw}
+check_flag         "frag"     ${frag}
 
 check_supplied_arg "nam_job" "${nam_job}"
 
@@ -478,7 +478,7 @@ if ${verbose}; then
     echo "siz_bin=${siz_bin}"
     echo "siz_gen=${siz_gen}"
     echo "dir_out=${dir_out}"
-    echo "raw=${raw}"
+    echo "frag=${frag}"
     echo "nam_job=${nam_job}"
     echo "submit=${submit}"
     echo "max_job=${max_job:-#N/A}"
@@ -488,7 +488,7 @@ if ${verbose}; then
 fi
 
 
-#  Compute normalized, raw (optional), and siQ-scaled coverage ----------------
+#  Compute 'normalized', frag-norm (optional), and siQ-scaled coverage --------
 #  Collect line numbers for layout markers
 ln_trk=$(awk '/getTracks/ { print NR }' "${exp_lay}")    # echo "${ln_trk}"
 ln_rsp=$(awk '/getResponse/ { print NR }' "${exp_lay}")  # echo "${ln_rsp}"
@@ -623,7 +623,7 @@ if [[
                             echo "    --siz_bin ${siz_bin} \\"
                             echo "    --siz_gen ${siz_gen} \\"
                             echo "    --dir_out ${dir_out} \\"
-                            echo "    $(if ${raw}; then echo "--raw"; fi)"
+                            echo "    $(if ${frag}; then echo "--frag"; fi)"
                             echo "         > ${dir_out}/logs/${nam_job}.${arr_stm[idx]}.stdout.txt \\"
                             echo "        2> ${dir_out}/logs/${nam_job}.${arr_stm[idx]}.stderr.txt"
                             echo ""
@@ -642,7 +642,7 @@ if [[
                                 --siz_bin "${siz_bin}" \
                                 --siz_gen "${siz_gen}" \
                                 --dir_out "${dir_out}" \
-                                $(if ${raw}; then echo "--raw"; fi) \
+                                $(if ${frag}; then echo "--frag"; fi) \
                                      > "${dir_out}/logs/${nam_job}.${arr_stm[idx]}.stdout.txt" \
                                     2> "${dir_out}/logs/${nam_job}.${arr_stm[idx]}.stderr.txt"
                         fi
@@ -677,7 +677,7 @@ if [[
                         echo "        --siz_bin ${siz_bin} \\"
                         echo "        --siz_gen ${siz_gen} \\"
                         echo "        --dir_out ${dir_out} \\"
-                        echo "        $(if ${raw}; then echo "--raw"; fi)"
+                        echo "        $(if ${frag}; then echo "--frag"; fi)"
                         echo ""
                         echo ""
                     fi
@@ -704,7 +704,7 @@ if [[
                                 --siz_bin ${siz_bin} \
                                 --siz_gen ${siz_gen} \
                                 --dir_out ${dir_out} \
-                                $(if ${raw}; then echo "--raw"; fi)
+                                $(if ${frag}; then echo "--frag"; fi)
                     fi
                     ;;
 
@@ -715,7 +715,7 @@ if [[
                     #  Dynamically add optional flags to command
                     if ${verbose}; then cmd+=" --verbose"; fi
                     if ${dry_run}; then cmd+=" --dry_run"; fi
-                    if ${raw}; then cmd+=" --raw"; fi
+                    if ${frag}; then cmd+=" --frag"; fi
 
                     #  Add argument placeholders
                     cmd+=" --fil_ip {1} --fil_in {2} --fil_prm {3}"

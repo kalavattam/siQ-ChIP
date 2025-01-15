@@ -108,7 +108,7 @@ function check_set_flag() {
     local value="${2}"
 
     if [[ -z "${value}" ]]; then
-        echo "Error: Flag --${name} is not set." >&2
+        echo "Error: Flag '--${name}' is not set." >&2
         return 1
     fi
 
@@ -116,7 +116,7 @@ function check_set_flag() {
         true|false) return 0 ;;
         *)
             echo \
-                "Error: Flag --${name} must be Boolean 'true' or 'false'," \
+                "Error: Flag '--${name}' must be Boolean 'true' or 'false'," \
                 "but got '${value}'." >&2
             return 1
             ;;
@@ -129,7 +129,7 @@ function check_supplied_arg() {
     local asgn="${2}"
 
     if [[ -z "${asgn}" ]]; then
-        echo "Error: --${name} is required." >&2
+        echo "Error: '--${name}' is required." >&2
         return 1
     fi
 }
@@ -141,7 +141,7 @@ function check_exists_file() {
 
     if [[ ! -f "${item}" ]]; then
         echo \
-            "Error: File associated with --${name} does not exist:" \
+            "Error: File associated with '--${name}' does not exist:" \
             "'${item}'." >&2
         return 1
     fi
@@ -154,7 +154,7 @@ function check_nonempty_file() {
 
     if [[ ! -s "${item}" ]]; then
         echo \
-            "Error: File associated with --${name} is empty: '${item}'." >&2
+            "Error: File associated with '--${name}' is empty: '${item}'." >&2
         return 1
     fi
 }
@@ -167,7 +167,7 @@ function check_int_nonneg() {
     #  Return error message if value is empty
     if [[ -z "${value}" ]]; then
         echo \
-            "Error: --${name} is empty but must be assigned a non-negative" \
+            "Error: '--${name}' is empty but must be assigned a non-negative" \
             "integer." >&2
         return 1
     fi
@@ -175,7 +175,7 @@ function check_int_nonneg() {
     #  Validate that value is a non-negative integer
     if ! [[ "${value}" =~ ^[0-9]+$ ]]; then    
         echo \
-            "Error: --${name} was assigned '${value}' but must be a" \
+            "Error: '--${name}' was assigned '${value}' but must be a" \
             "non-negative integer." >&2
         return 1
     fi
@@ -188,7 +188,7 @@ function check_exists_dir() {
 
     if ! [[ -d "${item}" ]]; then
         echo \
-            "Error: Directory associated with --${name} does not exist:" \
+            "Error: Directory associated with '--${name}' does not exist:" \
             "'${item}'." >&2
         return 1
     fi
@@ -272,7 +272,7 @@ function write_check_bdg() {
     if ${rmv_src} && [[ -f "${fil_out}" ]]; then
         rm "${fil_src}" || {
             echo \
-                "Warning: --rmv_src was specified but could not remove" \
+                "Warning: '--rmv_src' was specified but could not remove" \
                 "source file '${fil_src}'." >&2
         }
     fi
@@ -319,7 +319,7 @@ str_stm=""
 siz_bin=30
 siz_gen=12157105
 dir_out=""
-raw=false
+frag=false
 
 #  Assign variable for help message
 show_help=$(cat << EOM
@@ -327,17 +327,17 @@ Usage:
   run_crunch.sh
     [dir_scr] [env_nam] [--verbose] [--dry_run] --fil_ip <str> --fil_in <str>
     --fil_prm <int> --str_stm <str> --siz_bin <int> --siz_gen <int>
-    --dir_out <str> [--raw]
+    --dir_out <str> [--frag]
 
 Description:
   This script automates the calculation of coverage signal tracks from sorted
   BED files of fragments from paired-end alignments, returning normalized
   (proportional) coverage, metadata values, siQ-scaled coverage, and optionally
-  intermediate non-normalized (raw) coverage. The different kinds of coverage
-  are written to compressed bedGraph files; metadata values are written to a
-  TXT file.
+  intermediate fragment length-normalized coverage. The different kinds of
+  coverage are written to compressed BEDGRAPH files; metadata values are
+  written to a TXT file.
 
-Positional arguments:
+Positional arguments (SLURM execution only):
   1, dir_scr      Directory containing scripts. When running with SLURM, must
                   be supplied as first positional argument. Omit argument for
                   serial or GNU Parallel execution.
@@ -360,7 +360,8 @@ Keyword arguments:
   -sg, --siz_gen  Effective genome size of model organism (default:
                   ${siz_gen}).
   -do, --dir_out  The directory to write various outfiles.
-   -r, --raw      Write intermediate non-normalized compressed bedGraph files.
+  -fg, --frag     Write intermediate fragment length-normalized compressed
+                  bedGraph files.
 
 Dependencies:
   - AWK
@@ -381,9 +382,9 @@ Notes:
     + If multi-mapping alignments are excluded, compute with the 'khmer' script
       'unique-kmers.py' [e.g., 11624332 for S. cerevisae R64 genome (50-mers)].
   - ...
-  - If '--raw' is specified, intermediate non-normalized compressed bedGraph
-    files are written in addition to compressed bedGraph files of normalized
-    and siQ-scaled coverage.
+  - If '--frag' is specified, intermediate fragment length-normalized
+    compressed bedGraph files are written in addition to compressed bedGraph
+    files of normalized and siQ-scaled coverage.
 
 Example:
   \`\`\`
@@ -416,7 +417,7 @@ Example:
       --siz_bin "\${siz_bin}"
       --siz_gen "\${siz_gen}"
       --dir_out "\${dir_out}"
-      --raw
+      --frag
   done
   \`\`\`
 EOM
@@ -439,7 +440,7 @@ while [[ "$#" -gt 0 ]]; do
         -bs|--siz_bin) siz_bin="${2}"; shift 2 ;;
         -sg|--siz_gen) siz_gen="${2}"; shift 2 ;;
         -do|--dir_out) dir_out="${2}"; shift 2 ;;
-         -r|--raw)     raw=true;       shift 1 ;;
+        -fg|--frag)    frag=true;      shift 1 ;;
         *)
             echo "## Unknown argument passed: ${1} ##" >&2
             echo "" >&2
@@ -544,7 +545,7 @@ check_int_nonneg    "siz_gen" "${siz_gen}"
 check_supplied_arg  "dir_out" "${dir_out}"
 check_exists_dir    "dir_out" "${dir_out}"
 
-check_set_flag      "raw"     ${raw}
+check_set_flag      "frag"     ${frag}
 
 
 #  Do the main work ===========================================================
@@ -564,7 +565,7 @@ if ${verbose}; then
     echo "siz_bin=${siz_bin}"
     echo "siz_gen=${siz_gen}"
     echo "dir_out=${dir_out}"
-    echo "raw=${raw}"
+    echo "frag=${frag}"
     echo ""
     echo ""
 fi
@@ -623,7 +624,6 @@ echo ""
 echo ""
 
 #  Compute scaling factor alpha
-#INPROGRESS: Implement keyword arguments
 alf=$("${dir_scr}/get_alpha" -fp="${fil_prm}" -di="${n_in}" -dn="${n_ip}")
 
 #  Save metadata such as file line counts and alpha to a stem-specific TXT file
@@ -674,16 +674,17 @@ fi
 echo ""
 echo ""
 
-#  Optionally write non-normalized intermediate IP and input coverage
-if ${raw}; then
+#  Optionally write non-normalized intermediate fragment length-normalized IP
+#+ and input coverage
+if ${frag}; then
     write_check_bdg \
         --fil_src "${dir_out}/IP_${str_stm}.data" \
-        --fil_out "${dir_out}/raw_IP_${str_stm}.bdg.gz" \
+        --fil_out "${dir_out}/frag_IP_${str_stm}.bdg.gz" \
         --typ_cvg "IP intermediate"
 
     write_check_bdg \
         --fil_src "${dir_out}/in_${str_stm}.data" \
-        --fil_out "${dir_out}/raw_in_${str_stm}.bdg.gz" \
+        --fil_out "${dir_out}/frag_in_${str_stm}.bdg.gz" \
         --typ_cvg "input intermediate"
 fi
 
@@ -716,13 +717,13 @@ echo "## Check coverage sums and unity ##"
 echo "###################################"
 echo ""
 
-if ${raw}; then
+if ${frag}; then
     echo "## Raw IP ${str_stm} bedGraph file ##"
-    check_unity "${dir_out}/raw_IP_${str_stm}.bdg.gz"
+    check_unity "${dir_out}/frag_IP_${str_stm}.bdg.gz"
     echo ""
 
     echo "## Raw input ${str_stm} bedGraph file ##"
-    check_unity "${dir_out}/raw_in_${str_stm}.bdg.gz"
+    check_unity "${dir_out}/frag_in_${str_stm}.bdg.gz"
     echo ""
 fi
 

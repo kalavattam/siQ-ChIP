@@ -133,7 +133,7 @@ contains
       integer :: i
       logical :: has_factr, has_dep
    
-      ! Initialize defaults
+      ! Initialize default assignments
       fil_ip = ""
       fil_in = ""
       fil_siq = ""
@@ -226,7 +226,7 @@ contains
       write(*, *) "Usage:"
       write(*, *) "  merge_tracks"
       write(*, *) "    --fil_ip=<str> --fil_in=<str> --fil_siq=<str>"
-      write(*, *) "    --factr=<flt> --dep=<flt> [--chr=<str>]"
+      write(*, *) "    --factr=<flt> --dep=<flt> --chr=<str>"
       write(*, *) ""
       write(*, *) "Required arguments:"
       write(*, *) "  -fp, --fil_ip   Path to the IP BED file."
@@ -235,7 +235,7 @@ contains
       write(*, *) "  -fa, --factr    Scaling factor applied to merged data."
       write(*, *) "   -d, --dep      Expected depth."
       write(*, *) ""
-      write(*, *) "Optional arguments:"
+      write(*, *) "Optional arguments/arguments with default assignments:"
       write(*, *) "   -h, --help     Show this help message and exit."
       write(*, *) "   -c, --chr      First chromosome in model organism"
       write(*, *) "                  (default: chr1)."

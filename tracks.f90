@@ -323,7 +323,7 @@ contains
       integer :: i
       logical :: has_bin_ip, has_bin_in
 
-      ! Initialize defaults
+      ! Initialize default assignments
       fil_ip = ""
       fil_in = ""
       bin_ip = 30
@@ -430,15 +430,15 @@ contains
    subroutine print_help()
       write(*, *) "Usage:"
       write(*, *) "  tracks"
-      write(*, *) "    --fil_ip=<str> --fil_in=<str> [--bin_ip=<int>]"
-      write(*, *) "    [--bin_in=<int>] [--dat_ip=<str>] [--dat_in=<str>]"
-      write(*, *) "    [--avg_in=<int>] [--chr=<str>]"
+      write(*, *) "    --fil_ip=<str> --fil_in=<str> --bin_ip=<int>"
+      write(*, *) "    --bin_in=<int> --dat_ip=<str> --dat_in=<str>"
+      write(*, *) "    --avg_in=<int> --chr=<str>"
       write(*, *) ""
       write(*, *) "Required arguments:"
       write(*, *) "  -fp, --fil_ip  Path to the IP BED file."
       write(*, *) "  -fn, --fil_in  Path to the input BED file."
       write(*, *) ""
-      write(*, *) "Optional arguments:"
+      write(*, *) "Optional arguments/arguments with default assignments:"
       write(*, *) "   -h, --help    Show this help message and exit."
       write(*, *) "  -bp, --bin_ip  Bin size for IP file processing (default: 30)."
       write(*, *) "  -bn, --bin_in  Bin size for input file processing (default: 30)."
